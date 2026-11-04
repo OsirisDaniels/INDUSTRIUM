@@ -1,14 +1,14 @@
 import {Autonomy} from './autonomy.js?v=0230';
 import {createPlayer} from './player.js?v=0230';
 import {LivingWorld} from './living.js?v=0230';
-import {Intelligence} from './intelligence.js?v=0200';
+import {Intelligence} from './intelligence.js?v=0230';
 import {createCore} from './core.js?v=0230';
 import {createCoreUI} from './core-ui.js?v=0230';
 import {createPerformance} from './performance.js?v=0170';
 import {createSound} from './sound.js?v=0230';
-import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0160';
-import {createGameShell} from './shell.js?v=0141';
-import {createMigration} from './migration.js?v=0130';
+import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0230';
+import {createGameShell} from './shell.js?v=0230';
+import {createMigration} from './migration.js?v=0230';
 import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0100';
 import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
@@ -34,7 +34,7 @@ const performanceNow=()=>performance.now();
 const valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function status(){
  const p=factory.power(),c=scene?.cameras.main,x=c?Math.max(0,Math.min(W-1,Math.floor(c.midPoint.x/SCALE))):0;
- const region=world.region(x);$('region').textContent=region.title;if(!factory.regionVisits.includes(region.id))factory.regionVisits.push(region.id);
+ const region=world.region(x);$('region').textContent=region.title;if(!factory.regionVisits.includes(region.id)){factory.regionVisits.push(region.id);const r=living.regions[Math.floor(x/60)];if(r)r.visits++;living.record('Expedition reached '+region.title,region.id)}
  $('power').textContent='Power '+p.production+' / '+p.use;
  $('credits').textContent='Credits $'+Math.floor(factory.credits);
  $('machines').textContent=factory.machines.length+' machines';
@@ -108,15 +108,15 @@ function drawMiniMap(force=false){
  ctx.strokeStyle='#8ef4cf';ctx.lineWidth=1.4;ctx.strokeRect(left+.5,top+.5,ww,hh);
 }
 function renderMachines(time=0){drawMachines(buildGraphics,factory,time)}
-function renderEffects(time){drawAtmosphere(fxGraphics,world,time,showEffects,showGrid,scene?.cameras.main.zoom||1);if(ambienceGraphics)ambienceGraphics.clear()}
+function renderEffects(time){drawAtmosphere(fxGraphics,world,time,showEffects,showGrid,scene?.cameras.main.zoom||1,factory.weather?living.weather:[]);if(ambienceGraphics)ambienceGraphics.clear()}
 function worldPoint(pointer){const p=scene.cameras.main.getWorldPoint(pointer.x,pointer.y);return{x:Math.floor(p.x/SCALE),y:Math.floor(p.y/SCALE)}}
 function interact(pointer,first){
  const p=worldPoint(pointer);hoverCell=p;if(!valid(p.x,p.y))return;
  if(mode==='pan'){if(lastPointer){const c=scene.cameras.main;c.scrollX-=(pointer.x-lastPointer.x)/c.zoom;c.scrollY-=(pointer.y-lastPointer.y)/c.zoom;clampCamera()}lastPointer={x:pointer.x,y:pointer.y};return}
  if(mode==='walk'){if(first){player.walkTo(p.x);sound.play('select')}return}
  if(mode==='inspect'){if(!first)return;sound.play('inspect');const m=factory.machineAt(p.x,p.y);operations?.inspect(m);if(m){coreUI?.hide();shell?.openSheet('industry',true)}notice(m?(CATALOG[m.kind]?.title||m.kind)+' · '+(m.lastAction||'Ready')+' · Health '+(m.integrity??100)+'%':world.region(p.x).title+' · material '+world.at(p.x,p.y));return}
- if(mode==='build'){if(!first)return;const result=factory.place(building,p.x,p.y);sound.play(result?'error':'build');notice(result||'Built '+(CATALOG[building]?.title||building));renderMachines();status();operations?.render();return}
- if(mode==='paint'){if(!factory.creative&&material!==-1){if(first){notice('Career Mode cannot spawn material. Select Excavate instead.');sound.play('error')}return}if(material===-1){sound.play('dig');const n=factory.dig(p.x,p.y,brush);if(first)notice('Excavated '+n+' terrain cells')}else{sound.play('paint');world.paint(p.x,p.y,material,brush)}}
+ if(mode==='build'){if(!first)return;const result=factory.place(building,p.x,p.y);sound.play(result?'error':['generator','solar','wind','battery'].includes(building)?'power':['drill','deepdrill','oilrig','excavator'].includes(building)?'drill':'build');notice(result||'Built '+(CATALOG[building]?.title||building));renderMachines();status();operations?.render();return}
+ if(mode==='paint'){if(!factory.creative&&material!==-1){if(first){notice('Career Mode cannot spawn material. Select Excavate instead.');sound.play('error')}return}if(material===-1){sound.play('dig');const n=factory.dig(p.x,p.y,brush);if(first)notice('Excavated '+n+' terrain cells')}else{sound.play(material===T.WATER?'water':material===T.LAVA?'lava':material===T.STEAM?'steam':'paint');world.paint(p.x,p.y,material,brush)}}
 }
 function startPhaser(){
  if(!window.Phaser){$('error').textContent='Phaser could not load. Check your connection and try reloading.';$('loading').textContent='Game engine unavailable';return}
@@ -197,14 +197,14 @@ function startPhaser(){
    const keyLeft=this.keys?.A?.isDown||this.keys?.LEFT?.isDown,keyRight=this.keys?.D?.isDown||this.keys?.RIGHT?.isDown;
    player.setInput(mode==='walk'?(joyAxis+(keyRight?1:0)-(keyLeft?1:0)):0,false);
    if(mode==='walk'&&(this.keys?.W?.isDown||this.keys?.UP?.isDown||this.keys?.SPACE?.isDown)&&player.grounded){player.jump();sound.play('jump')}
-   player.step(delta);
+   const wasGrounded=player.grounded;player.step(delta);if(!wasGrounded&&player.grounded)sound.play('land');
    if(mode==='walk'&&player.moving&&time-lastFootstep>320){lastFootstep=time;sound.play('footstep')}
    if(player.follow){camera.centerOn(Phaser.Math.Linear(camera.midPoint.x,player.x*SCALE,.12),Phaser.Math.Linear(camera.midPoint.y,player.y*SCALE-40,.12));clampCamera()}
    if(time-lastPlayerDraw>45){player.draw(playerGraphics,time);lastPlayerDraw=time}
    acc=Math.min(acc+Math.min(delta,100),200);
    const cfg=perfController.config(batterySaver),step=cfg.simStep;let count=0;
-   const simStart=performanceNow();while(acc>=step&&count<cfg.steps&&performanceNow()-simStart<12){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){autonomy.step();factory.operate();living.step();intelligence.step();core.observe();core.refresh();if(factory.pendingEvents.length){const msg=factory.pendingEvents.shift();notice(msg);if(/damage|lost|overheat|warning|failure/i.test(msg))sound.play('warning')}}if(performanceNow()-simStart>12)break}}simCost=performanceNow()-simStart;
-   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();if(coreUI?.open&&time-lastCoreRender>1900){coreUI.render();lastCoreRender=time}lastHud=time}drawMiniMap();sound.step({weather:living.getWeather(player.x),machines:factory.machines.length,moving:player.moving,hot:dynamics.heatPeak>150,now:time});lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time);
+   const simStart=performanceNow();while(acc>=step&&count<cfg.steps&&performanceNow()-simStart<12){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){const actions=autonomy.actions;autonomy.step();if(autonomy.actions>actions)sound.play('automation');factory.operate();living.step();intelligence.step();core.observe();core.refresh();if(factory.pendingEvents.length){const msg=factory.pendingEvents.shift();notice(msg);if(/damage|lost|overheat|warning|failure/i.test(msg))sound.play('warning')}}if(performanceNow()-simStart>12)break}}simCost=performanceNow()-simStart;
+   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();if(coreUI?.open&&time-lastCoreRender>1900){coreUI.render();lastCoreRender=time}lastHud=time}drawMiniMap();sound.step({weather:living.getWeather(player.x),machines:factory.machines.length,nearbyKinds:factory.machines.filter(m=>Math.abs(m.x-player.x)<28&&Math.abs(m.y-player.y)<28&&!m.autoHold&&!m.safetyHold).map(m=>m.kind),moving:player.moving,hot:dynamics.heatPeak>150,now:time});lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time);
    if(time-autoSaveTime>90000){autoSaveTime=time;if('requestIdleCallback' in window)window.requestIdleCallback(()=>saveEngine(true),{timeout:10000});else saveEngine(true)}
    frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';const d=$('perfDetail'),stats=perfController.stats;if(d)d.textContent=perfController.name+' · '+stats.work.toFixed(1)+' ms/frame · Physics '+stats.simulation.toFixed(1)+' ms · Graphics '+stats.graphics.toFixed(1)+' ms';frameCount=0;perfTime=time}
   }
@@ -216,7 +216,7 @@ document.addEventListener('pointerdown',e=>{if(e.target.closest('button')){sound
 makeTools();if(!loadEngine()){world.generate();player.spawn()}refreshButtons();
 operations=createOperations(factory,{notice,save:()=>saveEngine(true),status});
 coreUI=createCoreUI({core,living,intelligence,autonomy,factory,notice,save:()=>saveEngine(true),sound});
-migration=createMigration({world,factory,dynamics,save:()=>saveEngine(true),refresh:()=>{renderTerrain();renderMachines();status();operations?.render();shell?.refreshCatalog();shell?.updateMenu();living.reset();intelligence.reset();core.refresh();coreUI?.render()},notice,travel:i=>travel(i*60+30,90)});
+migration=createMigration({world,factory,dynamics,living,intelligence,autonomy,player,core,save:()=>saveEngine(true),refresh:()=>{renderTerrain();renderMachines();status();operations?.render();shell?.refreshCatalog();shell?.updateMenu();coreUI?.render()},notice,travel:i=>travel(i*60+30,90)});
 shell=createGameShell({world,factory,dynamics,operations,migration,notice,onTravel:travel,onNewWorld:newWorld,onPause:p=>{paused=!!p;acc=0;refreshButtons()},onSave:saveEngine,onBrush:n=>{brush=n},onCreativeChange:creative=>{if(!creative){material=-1;if(mode==='paint')notice('Career Mode: excavation only')}refreshButtons()}});
 shell.setMenu(true);startPhaser();
 window.addEventListener('pagehide',()=>{if(scene)saveEngine(true)});
