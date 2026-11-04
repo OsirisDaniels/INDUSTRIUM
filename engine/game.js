@@ -1,3 +1,4 @@
+import {createMigration} from './migration.js?v=0130';
 import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0100';
 import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
@@ -10,7 +11,7 @@ import {CATALOG} from '../js/catalog.js?v=080-frontiers-final';
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory);
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
+let migration,operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
 const notice=s=>{$('notice').textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Fire',T.FIRE],['Lava',T.LAVA],['Oil',T.OIL],['Acid',T.ACID],['Ice',T.ICE],['Snow',T.SNOW],['Silt',T.SILT],['Steam',T.STEAM],['Erase',T.AIR],['Dig',-1]];
 const buildNames=['generator','drill','collector','furnace','solar','wind','storage','belt','pump','mixer','sifter','oilrig','distiller','combustor','battery','crystaldrill','surveyor','stabilizer','crusher','warehouse','deepdrill','refinery','hopper','kiln','press','filter','cooler','excavator','condenser','waterwheel'];
@@ -45,8 +46,8 @@ function makeTools(){
  $('zoomIn').onclick=()=>setZoom(1.25);
  $('zoomOut').onclick=()=>setZoom(.8);
  $('save').onclick=saveEngine;
- $('load').onclick=()=>{if(loadEngine()){notice('Engine save loaded');renderTerrain();renderMachines();status();operations?.render()}else notice('No engine save found')};
- $('new').onclick=()=>{if(!confirm('Create a new engine world? This replaces the engine test save only.'))return;factory.load({});world.generate();dynamics.reset();world.dirty=true;saveEngine();renderTerrain();renderMachines();status();operations?.render();notice('New engine world created')};
+ $('load').onclick=()=>{if(loadEngine()){notice('Engine save loaded');renderTerrain();renderMachines();status();operations?.render();migration?.render()}else notice('No engine save found')};
+ $('new').onclick=()=>{if(!confirm('Create a new engine world? This replaces the engine test save only.'))return;factory.load({});world.generate();dynamics.reset();world.dirty=true;saveEngine();renderTerrain();renderMachines();status();operations?.render();migration?.render();notice('New engine world created')};
  refreshButtons();
 }
 function setZoom(mult){if(!scene)return;const c=scene.cameras.main;c.setZoom(Phaser.Math.Clamp(c.zoom*mult,.7,3.5));clampCamera();status()}
@@ -133,5 +134,5 @@ function startPhaser(){
  try{game=new Phaser.Game({type:Phaser.AUTO,parent:'viewport',width:WIDTH,height:HEIGHT,backgroundColor:'#08121d',pixelArt:true,roundPixels:true,antialias:false,render:{pixelArt:true,antialias:false},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH,width:WIDTH,height:HEIGHT},input:{activePointers:3},scene:[FactoryScene],audio:{noAudio:true},banner:false})}
  catch(e){$('loading').textContent='Phaser startup failed';$('error').textContent=e.message}
 }
-makeTools();if(!loadEngine())world.generate();operations=createOperations(factory,{notice,save:saveEngine,status});startPhaser();
+makeTools();if(!loadEngine())world.generate();operations=createOperations(factory,{notice,save:saveEngine,status});migration=createMigration({world,factory,dynamics,save:saveEngine,refresh:()=>{renderTerrain();renderMachines();status();operations?.render()},notice,travel:i=>{if(scene){scene.cameras.main.centerOn((i*60+30)*SCALE,350);clampCamera();status()}}});startPhaser();
 window.addEventListener('pagehide',()=>{if(scene)saveEngine()});
