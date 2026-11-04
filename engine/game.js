@@ -1,3 +1,7 @@
+import {LivingWorld} from './living.js?v=0200';
+import {Intelligence} from './intelligence.js?v=0200';
+import {createCore} from './core.js?v=0200';
+import {createCoreUI} from './core-ui.js?v=0200';
 import {createPerformance} from './performance.js?v=0170';
 import {createSound} from './sound.js?v=0160';
 import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0160';
@@ -14,6 +18,8 @@ import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-fina
 // Engine saves use a separate key so the stable release is never overwritten.
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory),sound=createSound(),perfController=createPerformance();
+const living=new LivingWorld(world,factory,dynamics),intelligence=new Intelligence(world,factory,dynamics,living),core=createCore(factory,dynamics,living,intelligence);
+let coreUI;
 try{perfController.setMode(localStorage.getItem('industrium-performance')||'auto')}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100)}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
@@ -67,16 +73,16 @@ function makeTools(){
  $('zoomIn').onclick=()=>{sound.play('zoom');setZoom(1.25)};
  $('zoomOut').onclick=()=>{sound.play('zoom');setZoom(.8)};
  $('save').onclick=()=>saveEngine();
- $('load').onclick=()=>{if(loadEngine()){notice('Engine save loaded');renderTerrain();renderMachines();status();operations?.render();migration?.render();shell?.updateMenu();shell?.refreshCatalog();shell?.syncMaterials()}else notice('No engine save found')};
+ $('load').onclick=()=>{if(loadEngine()){notice('Engine save loaded');coreUI?.render();renderTerrain();renderMachines();status();operations?.render();migration?.render();shell?.updateMenu();shell?.refreshCatalog();shell?.syncMaterials()}else notice('No engine save found')};
  $('new').onclick=()=>{if(!confirm('Replace the Phaser autosave with a new random planet?'))return;newWorld()};
  refreshButtons();
 }
 function setZoom(mult){if(!scene)return;targetZoom=Phaser.Math.Clamp(targetZoom*mult,.65,4.5);status()}
 function clampCamera(){if(!scene)return;const c=scene.cameras.main,visW=c.width/c.zoom,visH=c.height/c.zoom;if(visW>=WIDTH)c.centerOn(WIDTH/2,c.midPoint.y);if(visH>=HEIGHT)c.centerOn(c.midPoint.x,HEIGHT/2);c.setScroll(Phaser.Math.Clamp(c.scrollX,0,Math.max(0,WIDTH-visW)),Phaser.Math.Clamp(c.scrollY,0,Math.max(0,HEIGHT-visH)))}
-function saveEngine(silent=false){try{if(!silent)sound.play('save');localStorage.setItem(KEY,JSON.stringify({grid:Array.from(world.grid),seed:world.seed,factory:factory.serialize(),environment:dynamics.snapshot(),savedAt:Date.now()}));if(!silent)notice('Factory saved');return true}catch(e){notice('Save failed: '+e.message);return false}}
-function newWorld(seed){const creative=factory.creative,weather=factory.weather;world.generate(seed);factory.load({creative,weather});dynamics.reset();world.dirty=true;saveEngine(true);renderTerrain();renderMachines();status();operations?.render();migration?.render();shell?.refreshCatalog();shell?.updateMenu();notice('New planet ready · Seed '+world.seed)}
+function saveEngine(silent=false){try{if(!silent)sound.play('save');localStorage.setItem(KEY,JSON.stringify({grid:Array.from(world.grid),seed:world.seed,factory:factory.serialize(),environment:dynamics.snapshot(),living:living.snapshot(),intelligence:intelligence.snapshot(),savedAt:Date.now()}));if(!silent)notice('Factory saved');return true}catch(e){notice('Save failed: '+e.message);return false}}
+function newWorld(seed){const creative=factory.creative,weather=factory.weather;world.generate(seed);factory.load({creative,weather});dynamics.reset();living.reset();intelligence.reset();core.refresh();world.dirty=true;saveEngine(true);renderTerrain();renderMachines();status();operations?.render();migration?.render();coreUI?.render();shell?.refreshCatalog();shell?.updateMenu();notice('New planet ready · Seed '+world.seed)}
 function travel(x,y){if(!scene)return;scene.cameras.main.centerOn(x*SCALE,y*SCALE);clampCamera();status()}
-function loadEngine(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||!world.import(s.grid))return false;world.seed=s.seed||0;factory.load(s.factory||{});dynamics.restore(s.environment);return true}catch(e){return false}}
+function loadEngine(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||!world.import(s.grid))return false;world.seed=s.seed||0;factory.load(s.factory||{});dynamics.restore(s.environment);living.restore(s.living);intelligence.restore(s.intelligence);core.refresh();return true}catch(e){return false}}
 function renderTerrain(time=worldTime){paintTerrain(texture,world,time,!batterySaver)}
 function drawMiniMap(force=false){
  if(!miniOpen||!scene||!texture||(!force&&worldTime-lastMini<800))return;lastMini=worldTime;
@@ -92,7 +98,7 @@ function worldPoint(pointer){const p=scene.cameras.main.getWorldPoint(pointer.x,
 function interact(pointer,first){
  const p=worldPoint(pointer);hoverCell=p;if(!valid(p.x,p.y))return;
  if(mode==='pan'){if(lastPointer){const c=scene.cameras.main;c.scrollX-=(pointer.x-lastPointer.x)/c.zoom;c.scrollY-=(pointer.y-lastPointer.y)/c.zoom;clampCamera()}lastPointer={x:pointer.x,y:pointer.y};return}
- if(mode==='inspect'){if(!first)return;sound.play('inspect');const m=factory.machineAt(p.x,p.y);operations?.inspect(m);if(m)shell?.openSheet('industry',true);notice(m?(CATALOG[m.kind]?.title||m.kind)+' · '+(m.lastAction||'Ready')+' · Health '+(m.integrity??100)+'%':world.region(p.x).title+' · material '+world.at(p.x,p.y));return}
+ if(mode==='inspect'){if(!first)return;sound.play('inspect');const m=factory.machineAt(p.x,p.y);operations?.inspect(m);if(m){coreUI?.hide();shell?.openSheet('industry',true)}notice(m?(CATALOG[m.kind]?.title||m.kind)+' · '+(m.lastAction||'Ready')+' · Health '+(m.integrity??100)+'%':world.region(p.x).title+' · material '+world.at(p.x,p.y));return}
  if(mode==='build'){if(!first)return;const result=factory.place(building,p.x,p.y);sound.play(result?'error':'build');notice(result||'Built '+(CATALOG[building]?.title||building));renderMachines();status();operations?.render();return}
  if(mode==='paint'){if(restrictedMaterials.has(material)&&!factory.creative){if(first)notice('Enable Creative Sandbox to place rare resources');return}if(material===-1){sound.play('dig');const n=factory.dig(p.x,p.y,brush);if(first)notice('Excavated '+n+' terrain cells')}else{sound.play('paint');world.paint(p.x,p.y,material,brush)}}
 }
@@ -143,8 +149,8 @@ function startPhaser(){
    if(paused)return;
    acc=Math.min(acc+Math.min(delta,100),200);
    const cfg=perfController.config(batterySaver),step=cfg.simStep;let count=0;
-   const simStart=performanceNow();while(acc>=step&&count<cfg.steps){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){factory.operate();if(factory.pendingEvents.length)notice(factory.pendingEvents.shift())}}}simCost=performanceNow()-simStart;
-   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();lastHud=time}drawMiniMap();lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time);
+   const simStart=performanceNow();while(acc>=step&&count<cfg.steps){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){factory.operate();living.step();intelligence.step();core.refresh();if(factory.pendingEvents.length)notice(factory.pendingEvents.shift())}}}simCost=performanceNow()-simStart;
+   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();coreUI?.render();lastHud=time}drawMiniMap();lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time);
    if(time-autoSaveTime>90000){autoSaveTime=time;if('requestIdleCallback' in window)window.requestIdleCallback(()=>saveEngine(true),{timeout:10000});else saveEngine(true)}
    frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';const d=$('perfDetail'),stats=perfController.stats;if(d)d.textContent=perfController.name+' · '+stats.work.toFixed(1)+' ms/frame · Physics '+stats.simulation.toFixed(1)+' ms · Graphics '+stats.graphics.toFixed(1)+' ms';frameCount=0;perfTime=time}
   }
@@ -155,7 +161,8 @@ function startPhaser(){
 document.addEventListener('pointerdown',e=>{if(e.target.closest('button')){sound.unlock();sound.play('click')}},{passive:true});
 makeTools();if(!loadEngine())world.generate();
 operations=createOperations(factory,{notice,save:()=>saveEngine(true),status});
-migration=createMigration({world,factory,dynamics,save:()=>saveEngine(true),refresh:()=>{renderTerrain();renderMachines();status();operations?.render();shell?.refreshCatalog();shell?.updateMenu()},notice,travel:i=>travel(i*60+30,90)});
+coreUI=createCoreUI({core,living,intelligence,factory,notice,save:()=>saveEngine(true)});
+migration=createMigration({world,factory,dynamics,save:()=>saveEngine(true),refresh:()=>{renderTerrain();renderMachines();status();operations?.render();shell?.refreshCatalog();shell?.updateMenu();living.reset();intelligence.reset();core.refresh();coreUI?.render()},notice,travel:i=>travel(i*60+30,90)});
 shell=createGameShell({world,factory,dynamics,operations,migration,notice,onTravel:travel,onNewWorld:newWorld,onPause:p=>{paused=!!p;acc=0;refreshButtons()},onSave:saveEngine,onBrush:n=>{brush=n}});
 shell.setMenu(true);startPhaser();
 window.addEventListener('pagehide',()=>{if(scene)saveEngine(true)});
