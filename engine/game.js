@@ -113,12 +113,14 @@ function startPhaser(){
    overlayGraphics=this.add.graphics().setDepth(7);
    fxGraphics=this.add.graphics().setDepth(6);
    this.cameras.main.setBounds(0,0,WIDTH,HEIGHT).setZoom(1.4).centerOn(240,350);
-   this.input.on('pointerdown',p=>{drag=true;lastPointer=null;interact(p,true)});
-   this.input.on('pointermove',p=>{if(drag&&p.isDown)interact(p,false)});
-   this.input.on('pointerup',()=>{drag=false;lastPointer=null});
+   this.scale.on('resize',()=>{clampCamera();status()});
+   let pinch=0;
+   this.input.on('pointerdown',p=>{if(this.input.pointer1.isDown&&this.input.pointer2.isDown){drag=false;lastPointer=null;return}drag=true;lastPointer=null;interact(p,true)});
+   this.input.on('pointermove',p=>{const a=this.input.pointer1,b=this.input.pointer2;if(a.isDown&&b.isDown){const d=Phaser.Math.Distance.Between(a.x,a.y,b.x,b.y);if(pinch>0&&d>4)setZoom(Math.max(.85,Math.min(1.15,d/pinch)));pinch=d;drag=false;return}pinch=0;if(drag&&p.isDown)interact(p,false)});
+   this.input.on('pointerup',()=>{drag=false;pinch=0;lastPointer=null});
    this.input.on('gameout',()=>{drag=false;lastPointer=null});
    this.input.on('wheel',(pointer,objects,dx,dy)=>{setZoom(dy>0?.9:1.1)});
-   this.input.on('pointerdown',p=>{if(this.input.pointer1.isDown&&this.input.pointer2.isDown){drag=false;lastPointer=null}});
+
    this.input.addPointer(2);
    renderTerrain();renderMachines();status();
    $('loading').classList.add('hide');
@@ -131,12 +133,16 @@ function startPhaser(){
    const step=33.333;let count=0;
    while(acc>=step&&count<3){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0)factory.operate()}}
    if(time-lastFrame>65){if(world.dirty||time-lastFrame>450)renderTerrain();renderMachines(time);renderEffects(time);status();lastFrame=time}
-   if(time-autoSaveTime>90000){autoSaveTime=time;saveEngine()}
+   if(time-autoSaveTime>90000){autoSaveTime=time;saveEngine(true)}
    frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';frameCount=0;perfTime=time}
   }
  }
- try{game=new Phaser.Game({type:Phaser.AUTO,parent:'viewport',width:WIDTH,height:HEIGHT,backgroundColor:'#08121d',pixelArt:true,roundPixels:true,antialias:false,render:{pixelArt:true,antialias:false},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH,width:WIDTH,height:HEIGHT},input:{activePointers:3},scene:[FactoryScene],audio:{noAudio:true},banner:false})}
+ try{game=new Phaser.Game({type:Phaser.AUTO,parent:'viewport',width:WIDTH,height:HEIGHT,backgroundColor:'#08121d',pixelArt:true,roundPixels:true,antialias:false,render:{pixelArt:true,antialias:false},scale:{mode:Phaser.Scale.RESIZE,autoCenter:Phaser.Scale.NO_CENTER,width:window.innerWidth,height:window.innerHeight},input:{activePointers:3},scene:[FactoryScene],audio:{noAudio:true},banner:false})}
  catch(e){$('loading').textContent='Phaser startup failed';$('error').textContent=e.message}
 }
-makeTools();if(!loadEngine())world.generate();operations=createOperations(factory,{notice,save:saveEngine,status});migration=createMigration({world,factory,dynamics,save:saveEngine,refresh:()=>{renderTerrain();renderMachines();status();operations?.render()},notice,travel:i=>{if(scene){scene.cameras.main.centerOn((i*60+30)*SCALE,350);clampCamera();status()}}});startPhaser();
-window.addEventListener('pagehide',()=>{if(scene)saveEngine()});
+makeTools();if(!loadEngine())world.generate();
+operations=createOperations(factory,{notice,save:()=>saveEngine(true),status});
+migration=createMigration({world,factory,dynamics,save:()=>saveEngine(true),refresh:()=>{renderTerrain();renderMachines();status();operations?.render();shell?.refreshCatalog();shell?.updateMenu()},notice,travel:i=>travel(i*60+30,90)});
+shell=createGameShell({world,factory,dynamics,operations,migration,notice,onTravel:travel,onNewWorld:newWorld,onPause:p=>{paused=!!p;acc=0;refreshButtons()},onSave:saveEngine,onBrush:n=>{brush=n}});
+shell.setMenu(true);startPhaser();
+window.addEventListener('pagehide',()=>{if(scene)saveEngine(true)});
