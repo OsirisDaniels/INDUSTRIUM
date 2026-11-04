@@ -1,9 +1,10 @@
+import {createGameShell} from './shell.js?v=0140';
 import {createMigration} from './migration.js?v=0130';
 import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0100';
 import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
 import {Factory,PRICES,COLORS as MACHINE_COLORS} from '../js/factory.js?v=080-frontiers-final';
-import {CATALOG} from '../js/catalog.js?v=080-frontiers-final';
+import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-final';
 
 // Phaser owns the game scene, graphics texture, camera, pointer input and update loop.
 // INDUSTRIUM's deterministic cellular physics and factory rules are kept as game systems.
@@ -11,9 +12,10 @@ import {CATALOG} from '../js/catalog.js?v=080-frontiers-final';
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory);
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let migration,operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
+let shell,migration,operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
 const notice=s=>{$('notice').textContent=s};
-const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Fire',T.FIRE],['Lava',T.LAVA],['Oil',T.OIL],['Acid',T.ACID],['Ice',T.ICE],['Snow',T.SNOW],['Silt',T.SILT],['Steam',T.STEAM],['Erase',T.AIR],['Dig',-1]];
+const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
+const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
 const buildNames=['generator','drill','collector','furnace','solar','wind','storage','belt','pump','mixer','sifter','oilrig','distiller','combustor','battery','crystaldrill','surveyor','stabilizer','crusher','warehouse','deepdrill','refinery','hopper','kiln','press','filter','cooler','excavator','condenser','waterwheel'];
 const valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function status(){
@@ -34,8 +36,8 @@ function refreshButtons(){
 }
 function makeTools(){
  const mat=$('materials'),machines=$('factoryTools');
- for(const [name,id] of materialNames){const b=document.createElement('button');b.textContent=name;b.dataset.material=id;b.onclick=()=>{material=id;mode='paint';refreshButtons();notice(name+' tool selected')};mat.append(b)}
- for(const kind of buildNames){const b=document.createElement('button');b.textContent=(CATALOG[kind]?.title||kind)+' · $'+PRICES[kind];b.dataset.machine=kind;b.onclick=()=>{building=kind;mode='build';refreshButtons();notice('Tap the world to place '+kind)};machines.append(b)}
+ for(const [name,id] of materialNames){const b=document.createElement('button');b.textContent=name;b.dataset.material=id;b.dataset.restricted=restrictedMaterials.has(id)?'1':'0';if(id>=0&&COLORS[id]){const color=COLORS[id];b.style.borderLeft='4px solid rgb('+color.join(',')+')'}b.onclick=()=>{if(restrictedMaterials.has(id)&&!factory.creative){notice(name+' requires Creative Sandbox. Enable it in Settings.');return}material=id;mode='paint';refreshButtons();notice(name+' tool selected')};mat.append(b)}
+ for(const kind of buildNames){const b=document.createElement('button');b.textContent=(CATALOG[kind]?.title||kind)+' · $'+PRICES[kind];b.dataset.machine=kind;b.dataset.price=PRICES[kind];b.dataset.category=CATALOG[kind]?.category||'Other';b.onclick=()=>{if(!unlocked(kind,factory)){notice((CATALOG[kind]?.title||kind)+' locked: '+unlockHint(kind));shell?.refreshCatalog();return}building=kind;mode='build';refreshButtons();notice('Tap the world to place '+(CATALOG[kind]?.title||kind))};machines.append(b)}
  for(const id of ['paint','pan','inspect'])$(id).onclick=()=>{mode=id;refreshButtons();notice(id==='pan'?'Drag to move the camera':id==='inspect'?'Tap machinery to inspect':'Tap to paint terrain')};
  $('pause').onclick=()=>{paused=!paused;refreshButtons()};
  $('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;refreshButtons()};
