@@ -150,3 +150,7 @@ body{background:#060d16}
 
 /* Alpha 0.23.3 player appearance selector */
 #playerStyle{max-width:150px;min-width:115px;background:#12333b;color:#e8fff5;border:1px solid #55867b;border-radius:9px;padding:9px 10px;font:inherit}
+
+/* Alpha 0.24 hybrid renderer preferences: compact and touch-friendly. */
+#hybridDetail{max-width:160px;min-width:112px;background:#12333b;color:#e8fff5;border:1px solid #55867b;border-radius:9px;padding:9px 10px;font:inherit}
+#hybridToggle{min-width:95px}
