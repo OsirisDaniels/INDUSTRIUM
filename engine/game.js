@@ -1,3 +1,4 @@
+import {createPerformance} from './performance.js?v=0170';
 import {createSound} from './sound.js?v=0160';
 import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0160';
 import {createGameShell} from './shell.js?v=0141';
@@ -12,7 +13,8 @@ import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-fina
 // INDUSTRIUM's deterministic cellular physics and factory rules are kept as game systems.
 // Engine saves use a separate key so the stable release is never overwritten.
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
-const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory),sound=createSound();
+const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory),sound=createSound(),perfController=createPerformance();
+try{perfController.setMode(localStorage.getItem('industrium-performance')||'auto')}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100)}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
 let lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0;let shell,migration,operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
@@ -20,6 +22,7 @@ const notice=s=>{const el=$('notice');if(el.textContent!==s)el.textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
 const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
 const buildNames=['generator','drill','collector','furnace','solar','wind','storage','belt','pump','mixer','sifter','oilrig','distiller','combustor','battery','crystaldrill','surveyor','stabilizer','crusher','warehouse','deepdrill','refinery','hopper','kiln','press','filter','cooler','excavator','condenser','waterwheel'];
+const performanceNow=()=>performance.now();
 const valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function status(){
  const p=factory.power(),c=scene?.cameras.main,x=c?Math.max(0,Math.min(W-1,Math.floor(c.midPoint.x/SCALE))):0;
@@ -52,6 +55,8 @@ function makeTools(){
  $('soundToggle').textContent=sound.enabled?'Sound On':'Sound Off';$('soundToggle').classList.toggle('active',sound.enabled);$('soundVolume').value=Math.round(sound.volume*100);
  $('soundToggle').onclick=()=>{sound.setEnabled(!sound.enabled);$('soundToggle').textContent=sound.enabled?'Sound On':'Sound Off';$('soundToggle').classList.toggle('active',sound.enabled);try{localStorage.setItem('industrium-sound',sound.enabled?'on':'off')}catch(e){}if(sound.enabled)sound.play('select')};
  $('soundVolume').oninput=e=>{sound.setVolume(Number(e.target.value)/100);try{localStorage.setItem('industrium-volume',e.target.value)}catch(e){}};
+ $('performanceMode').value=perfController.mode;
+ $('performanceMode').onchange=e=>{perfController.setMode(e.target.value);try{localStorage.setItem('industrium-performance',perfController.mode)}catch(err){}notice('Performance profile: '+perfController.mode)};
  $('batterySaver').onclick=()=>{batterySaver=!batterySaver;$('batterySaver').classList.toggle('active',batterySaver);$('batterySaver').textContent='Saver '+(batterySaver?'On':'Off');notice('Battery saver '+(batterySaver?'enabled: reduced render and simulation frequency':'disabled'))};
  $('environment').onclick=()=>{dynamics.active=!dynamics.active;$('environment').textContent='Dynamics '+(dynamics.active?'On':'Off');$('environment').classList.toggle('active',dynamics.active);notice('Environmental simulation '+(dynamics.active?'enabled':'paused'))};
  $('home').onclick=()=>{if(!scene)return;scene.cameras.main.centerOn(480,350);clampCamera();status()};
@@ -122,6 +127,7 @@ function startPhaser(){
   }
   update(time,delta){
    worldTime=time;
+   const frameStart=performanceNow();let simCost=0,renderCost=0;
    const camera=this.cameras.main;
    if(Math.abs(camera.zoom-targetZoom)>.003){camera.setZoom(Phaser.Math.Linear(camera.zoom,targetZoom,Math.min(1,delta*.012)));clampCamera()}
    const previewKey=hoverCell&&mode!=='pan'?[mode,hoverCell.x,hoverCell.y,brush,material,building,factory.credits,factory.machines.length].join(':'):'';
@@ -136,11 +142,11 @@ function startPhaser(){
    }
    if(paused)return;
    acc=Math.min(acc+Math.min(delta,100),200);
-   const step=batterySaver?60:40;let count=0;
-   while(acc>=step&&count<2){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){factory.operate();if(factory.pendingEvents.length)notice(factory.pendingEvents.shift())}}}
-   if(time-lastFrame>(batterySaver?130:70)){if(world.dirty&&time-lastTerrainAt>(batterySaver?160:95)){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>(batterySaver?220:110)){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>(batterySaver?260:180)){renderEffects(time);lastEffectsAt=time}if(time-lastHud>500){status();lastHud=time}drawMiniMap();lastFrame=time}
+   const cfg=perfController.config(batterySaver),step=cfg.simStep;let count=0;
+   const simStart=performanceNow();while(acc>=step&&count<cfg.steps){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){factory.operate();if(factory.pendingEvents.length)notice(factory.pendingEvents.shift())}}}simCost=performanceNow()-simStart;
+   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();lastHud=time}drawMiniMap();lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time);
    if(time-autoSaveTime>90000){autoSaveTime=time;saveEngine(true)}
-   frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';frameCount=0;perfTime=time}
+   frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';const d=$('perfDetail'),stats=perfController.stats;if(d)d.textContent=perfController.name+' · '+stats.work.toFixed(1)+' ms/frame · Physics '+stats.simulation.toFixed(1)+' ms · Graphics '+stats.graphics.toFixed(1)+' ms';frameCount=0;perfTime=time}
   }
  }
  try{game=new Phaser.Game({type:Phaser.AUTO,parent:'viewport',width:WIDTH,height:HEIGHT,backgroundColor:'#08121d',pixelArt:true,roundPixels:true,antialias:false,render:{pixelArt:true,antialias:false},scale:{mode:Phaser.Scale.RESIZE,autoCenter:Phaser.Scale.NO_CENTER,width:window.innerWidth,height:window.innerHeight},input:{activePointers:3},scene:[FactoryScene],audio:{noAudio:true},banner:false})}
