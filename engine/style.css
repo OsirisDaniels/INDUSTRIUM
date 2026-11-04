@@ -90,3 +90,29 @@ body{background:#060d16}
 /* Alpha 0.17 adaptive performance controls */
 #performanceMode{min-width:130px;max-width:175px;border:1px solid #47746f;background:#132f3b;color:#e9fff5;border-radius:9px;padding:9px 10px;font:inherit}
 #perfDetail{font-size:11px;color:#a9e5d0;max-width:175px;text-align:right;line-height:1.4;font-variant-numeric:tabular-nums}
+
+/* Alpha 0.20: INDUSTRIUM CORE mobile command interface */
+.coreBody{display:grid;gap:12px;min-width:0}
+.coreBody[hidden]{display:none!important}
+.coreIntro{border:1px solid #426d73;border-radius:12px;background:linear-gradient(130deg,#123c43,#0b2634);padding:14px}
+.coreIntro h3{font-size:20px;margin:6px 0;color:#c5ffe4}
+.coreIntro p{font-size:12px;color:#b5cfd1;line-height:1.5;margin:0}
+.coreBody h4{font-size:12px;letter-spacing:1.1px;color:#b3f2d8;margin:8px 0 0}
+.coreMetrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.coreMetrics>div{display:grid;gap:5px;padding:10px;border-radius:9px;background:#102b38;border:1px solid #365c64;min-width:0}
+.coreMetrics small{font-size:9px;color:#9fc6c4;letter-spacing:.7px}
+.coreMetrics strong{font-size:17px;color:#e6fff1;overflow-wrap:anywhere}
+.coreAlert{border:1px solid #41646d;border-left:3px solid #8ecbb9;background:#112b38;border-radius:9px;padding:10px 12px}
+.coreAlert.priority3{border-left-color:#f08372}.coreAlert.priority2{border-left-color:#f0c278}
+.coreAlert strong{font-size:12px;color:#f0fff5}.coreAlert p{font-size:11px;color:#c1d4d6;margin:5px 0;line-height:1.5}.coreAlert small{font-size:10px;color:#a3d8cb}
+.coreGood{font-size:12px;color:#a3ebc6}
+.coreControls{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+.coreControls select{flex:1;min-width:110px;max-width:100%;border:1px solid #416f73;background:#102c39;color:#f0fff5;padding:10px;border-radius:8px}
+.coreControls button{border:1px solid #50897d;background:#1c4a47;color:#e6fff4;border-radius:8px;padding:10px 12px}
+.coreControls label{font-size:12px;color:#c6e7df;display:flex;align-items:center;gap:8px}
+#coreDiagnostic{font-size:11px;line-height:1.6;color:#a6d4c7;padding:8px 10px;border:1px solid #2d515b;border-radius:8px;background:#0c2431}
+.coreRegions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.coreRegion{display:grid;gap:4px;border:1px solid #315967;background:#0e2836;border-radius:9px;padding:10px;min-width:0}
+.coreRegion strong{font-size:11px}.coreRegion span{font-size:12px;color:#a4ebc9}.coreRegion small{font-size:10px;color:#a3bcc5}
+.coreLog{padding-left:18px;margin:0;display:grid;gap:8px;font-size:11px;color:#b9d2d3;line-height:1.5}
+@media(max-width:430px){.coreMetrics strong{font-size:14px}.coreIntro h3{font-size:17px}.coreRegions{gap:6px}.coreRegion{padding:8px}}
