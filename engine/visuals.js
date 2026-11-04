@@ -7,36 +7,36 @@ const water=new Set([T.WATER,T.OIL,T.LAVA,T.ACID]);
 const gas=new Set([T.STEAM,T.VAPOUR,T.FIRE]);
 const minerals=new Set([T.ORE,T.GOLD,T.CRYSTAL,T.METAL,T.FUEL,T.ARTIFACT]);
 const rocky=new Set([T.STONE,T.BASALT,T.OBSIDIAN,T.SANDSOIL,T.GLASS]);
+// Cache the painted terrain and update only tiles that actually changed.
 const pixelBuffers=new WeakMap();
 export function paintTerrain(texture,world,now=0,quality=true){
  if(!texture)return;
- const ctx=texture.getContext();let pixels=pixelBuffers.get(texture);if(!pixels){pixels=ctx.createImageData(W,H);pixelBuffers.set(texture,pixels)}const data=pixels.data,g=world.grid;
- const time=(now/180)|0,seed=world.seed|0;
- for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-  const i=y*W+x,t=g[i],c=COLORS[t]||COLORS[0],j=i*4,h=hash(x,y,seed),grain=h%19-9;
-  let shade=grain*(quality?0.68:0.38),glow=0;
-  if(t===T.AIR){
-   const depth=y/H,sky=hash(x>>4,y>>4,seed)%9;
-   data[j]=clamp(9+depth*4+sky*.2);data[j+1]=clamp(20+depth*8+sky*.45);data[j+2]=clamp(30+depth*13+sky*.6);data[j+3]=255;continue;
-  }
-  if(rocky.has(t)){
-   shade+=((x+y*3)%7===0?12:0);
-   if(x>0&&g[i-1]!==t)shade-=15;
-   if(y>0&&g[i-W]!==t)shade+=18;
-  }
-  if(minerals.has(t)){glow=(h%13===0?38:0);if(y>0&&g[i-W]!==t)glow+=18}
-  if(water.has(t)){
-   shade+=(hash(x+(quality?time:0),y,seed)%11-5)*.9;
-   if(y>0&&g[i-W]!==t){shade+=26;glow+=t===T.LAVA?26:8}
-  }
-  if(gas.has(t)){shade+=((hash(x+(quality?time:0),y,seed)%19)-9)*1.2}
-  if(t===T.SAND||t===T.SNOW||t===T.SILT)shade+=(h%7===0?13:0);
-  data[j]=clamp(c[0]+shade+glow);
-  data[j+1]=clamp(c[1]+shade*.85+glow*.6);
-  data[j+2]=clamp(c[2]+shade*.7+glow*(t===T.CRYSTAL?1:.35));
-  data[j+3]=255;
+ const ctx=texture.getContext(),g=world.grid,N=W*H;
+ let state=pixelBuffers.get(texture);
+ if(!state){state={pixels:ctx.createImageData(W,H),previous:new Uint8Array(N),marks:new Uint32Array(N),epoch:0,seed:null,quality:null};pixelBuffers.set(texture,state)}
+ const data=state.pixels.data,seed=world.seed|0,full=state.seed!==seed||state.quality!==quality;
+ state.seed=seed;state.quality=quality;
+ const paintCell=i=>{
+  const x=i%W,y=(i/W)|0,t=g[i],c=COLORS[t]||COLORS[0],j=i*4,h=hash(x,y,seed),grain=h%19-9;
+  let shade=grain*(quality?.68:.38),glow=0;
+  if(t===T.AIR){const depth=y/H,sky=hash(x>>4,y>>4,seed)%9;
+   data[j]=clamp(9+depth*4+sky*.2);data[j+1]=clamp(20+depth*8+sky*.45);data[j+2]=clamp(30+depth*13+sky*.6);data[j+3]=255;return}
+  if(rocky.has(t)){shade+=(x+y*3)%7===0?12:0;if(x>0&&g[i-1]!==t)shade-=15;if(y>0&&g[i-W]!==t)shade+=18}
+  if(minerals.has(t)){glow=h%13===0?38:0;if(y>0&&g[i-W]!==t)glow+=18}
+  if(water.has(t)){shade+=(h%11-5)*.9;if(y>0&&g[i-W]!==t){shade+=26;glow+=t===T.LAVA?26:8}}
+  if(gas.has(t))shade+=(h%19-9)*1.2;
+  if(t===T.SAND||t===T.SNOW||t===T.SILT)shade+=h%7===0?13:0;
+  data[j]=clamp(c[0]+shade+glow);data[j+1]=clamp(c[1]+shade*.85+glow*.6);data[j+2]=clamp(c[2]+shade*.7+glow*(t===T.CRYSTAL?1:.35));data[j+3]=255;
+ };
+ if(full){state.previous.set(g);for(let i=0;i<N;i++)paintCell(i)}
+ else{
+  const changed=[];const epoch=++state.epoch,marks=state.marks,previous=state.previous;
+  const mark=i=>{if(i<0||i>=N||marks[i]===epoch)return;marks[i]=epoch;changed.push(i)};
+  for(let i=0;i<N;i++)if(previous[i]!==g[i]){previous[i]=g[i];mark(i);const x=i%W;if(x>0)mark(i-1);if(x<W-1)mark(i+1);if(i>=W)mark(i-W);if(i<N-W)mark(i+W)}
+  if(!changed.length){world.dirty=false;return}
+  for(let i=0;i<changed.length;i++)paintCell(changed[i]);
  }
- ctx.putImageData(pixels,0,0);texture.refresh();world.dirty=false;
+ ctx.putImageData(state.pixels,0,0);texture.refresh();world.dirty=false;
 }
 const palettes={
  generator:['#1b4e48','#64d8ae','#c1ffde'],solar:['#193c64','#69bde7','#d4f4ff'],wind:['#255047','#8bdfc0','#f2fff7'],waterwheel:['#1c5261','#6dc4e7','#d2f9ff'],battery:['#42542d','#a9d573','#e6f9bb'],
