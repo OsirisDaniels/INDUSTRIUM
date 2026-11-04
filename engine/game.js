@@ -103,10 +103,10 @@ function startPhaser(){
    this.cameras.main.setBounds(0,0,WIDTH,HEIGHT).setZoom(targetZoom).centerOn(240,350);
    this.scale.on('resize',()=>{clampCamera();status()});
    let pinch=0,pinchCenter=null;
-   this.input.on('pointerdown',p=>{if(this.input.pointer1.isDown&&this.input.pointer2.isDown){drag=false;lastPointer=null;pinchCenter=null;return}drag=true;lastPointer=null;interact(p,true)});
+   this.input.on('pointerdown',p=>{if(this.input.pointer1.isDown&&this.input.pointer2.isDown){drag=false;lastPointer=null;pinchCenter=null;hoverCell=null;previewGraphics?.clear();return}drag=true;lastPointer=null;interact(p,true)});
    this.input.on('pointermove',p=>{const a=this.input.pointer1,b=this.input.pointer2;if(a.isDown&&b.isDown){const d=Phaser.Math.Distance.Between(a.x,a.y,b.x,b.y),center={x:(a.x+b.x)/2,y:(a.y+b.y)/2};if(pinch>0&&d>4)setZoom(Math.max(.85,Math.min(1.15,d/pinch)));if(pinchCenter){const cam=this.cameras.main;cam.scrollX-=(center.x-pinchCenter.x)/cam.zoom;cam.scrollY-=(center.y-pinchCenter.y)/cam.zoom;clampCamera()}pinch=d;pinchCenter=center;drag=false;hoverCell=null;return}pinch=0;pinchCenter=null;hoverCell=worldPoint(p);if(drag&&p.isDown)interact(p,false)});
-   this.input.on('pointerup',()=>{drag=false;pinch=0;pinchCenter=null;lastPointer=null});
-   this.input.on('gameout',()=>{drag=false;lastPointer=null;hoverCell=null});
+   this.input.on('pointerup',()=>{drag=false;pinch=0;pinchCenter=null;lastPointer=null;hoverCell=null});
+   this.input.on('gameout',()=>{drag=false;lastPointer=null;hoverCell=null;previewGraphics?.clear()});
    this.input.on('wheel',(pointer,objects,dx,dy)=>{setZoom(dy>0?.9:1.1)});
 
    this.input.addPointer(2);
