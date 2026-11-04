@@ -81,6 +81,19 @@ export function createHybrid(world,factory,dynamics){
    const x=4+((k*89+(time*.023|0))%(W*4-8)),y=120+((k*61+(time*.047|0))%430),cell=clamp(Math.floor(x/4),0,W-1)+clamp(Math.floor(y/4),0,H-1)*W;
    if(activity[cell]&&visible(x,y,3)){g.fillStyle(0xa9e5e9,.18+activity[cell]/65);g.fillCircle(x,y,1.4)}
   }
+  // Alpha 0.28: bounded visible fluid glints and lava heat ripples.
+  // Sample only the camera region, capped at 110 marks per render.
+  const x0=clamp(Math.floor((view?.left??0)/4),1,W-2),x1=clamp(Math.ceil((view?.right??W*4)/4),1,W-2);
+  const y0=clamp(Math.floor((view?.top??0)/4),1,H-2),y1=clamp(Math.ceil((view?.bottom??H*4)/4),1,H-2);
+  const step=fast?7:4;let marks=0;
+  for(let y=y0;y<=y1&&marks<110;y+=step)for(let x=x0;x<=x1&&marks<110;x+=step){
+   const i=y*W+x,v=world.grid[i];if(v!==T.WATER&&v!==T.LAVA&&v!==T.OIL&&v!==T.ACID)continue;
+   if(world.grid[i-W]===v)continue;
+   const shimmer=Math.sin(t*3+x*.43+y*.21)*1.2;
+   g.fillStyle(v===T.LAVA?0xffd18b:v===T.WATER?0x9deaff:v===T.ACID?0xb6ff99:0xc2c3d4,fast?.25:.43);
+   g.fillRect(x*4,y*4+shimmer,3,1);marks++;
+   if(v===T.LAVA&&!fast&&marks%3===0){g.fillStyle(0xff975c,.12);g.fillCircle(x*4+2,y*4-2,4)}
+  }
   // Weather lighting: subtle region tint only. The underlying terrain remains legible.
   for(let r=0;r<4;r++){
    const w=weather[r]||0;if(!visible(r*240+120,200,140))continue;if(w===3){g.fillStyle(0xff9859,.025);g.fillRect(r*240,0,240,450)}
