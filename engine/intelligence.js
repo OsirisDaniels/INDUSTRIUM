@@ -1,5 +1,5 @@
 // Alpha 0.19: bounded machine intelligence, wear, safety controls and diagnostics.
-import {DEMAND} from '../js/factory.js?v=0230';
+import {DEMAND} from '../js/factory.js?v=0233';
 import {W,T} from '../js/world.js?v=080-frontiers-final';
 const industrial=new Set(['furnace','refinery','kiln','combustor','distiller','generator','press','oilrig','deepdrill']);
 export class Intelligence{
