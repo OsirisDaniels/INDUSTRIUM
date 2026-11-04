@@ -1,8 +1,9 @@
+import {createEngineerSprite} from './engineer-sprite.js?v=0280';
 import {createIndustrialSprites} from './sprites.js?v=0270';
 import {createStructures} from './structures.js?v=0250';
 import {createHybrid} from './hybrid.js?v=0260';
 import {Autonomy} from './autonomy.js?v=0233';
-import {createPlayer} from './player.js?v=0232';
+import {createPlayer} from './player.js?v=0280';
 import {LivingWorld} from './living.js?v=0231';
 import {Intelligence} from './intelligence.js?v=0233';
 import {createCore} from './core.js?v=0233';
@@ -32,7 +33,7 @@ try{spriteMode=localStorage.getItem('industrium-sprites')!=='off'}catch(e){}
 try{hybrid.enabled=localStorage.getItem('industrium-hybrid')!=='off';hybrid.detail=localStorage.getItem('industrium-hybrid-detail')||'auto'}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100);sound.setAmbience(localStorage.getItem('industrium-ambience')!=='off')}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0;let industrialSprites=null,spriteMode=true,shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
+let lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0;let engineerSprite=null,industrialSprites=null,spriteMode=true,shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
 const notice=s=>{const el=$('notice');if(el.textContent!==s)el.textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
 const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
@@ -154,6 +155,8 @@ function startPhaser(){
    structureGraphics=this.add.graphics().setDepth(4);
    fxGraphics=this.add.graphics().setDepth(6);
    playerGraphics=this.add.graphics().setDepth(8);
+   engineerSprite=createEngineerSprite(this,player);
+   if(engineerSprite)playerGraphics.setVisible(false);
    playerGraphics.setVisible(true);
    this.cameras.main.setBounds(0,0,WIDTH,HEIGHT).setZoom(targetZoom).centerOn(240,350);
    this.scale.on('resize',()=>{clampCamera();status()});
@@ -221,7 +224,7 @@ function startPhaser(){
    const wasGrounded=player.grounded,oldHealth=player.health;player.step(delta);if(!wasGrounded&&player.grounded)sound.play('land');if(player.health<oldHealth&&time-lastHazardSound>3200){sound.play('warning');lastHazardSound=time}
    if(mode==='walk'&&player.moving&&time-lastFootstep>320){lastFootstep=time;sound.play('footstep')}
    if(player.follow){camera.centerOn(Phaser.Math.Linear(camera.midPoint.x,player.x*SCALE,.12),Phaser.Math.Linear(camera.midPoint.y,player.y*SCALE-40,.12));clampCamera()}
-   if(time-lastPlayerDraw>45){player.draw(playerGraphics,time);lastPlayerDraw=time}
+   if(time-lastPlayerDraw>45){if(engineerSprite)engineerSprite.update(time);else player.draw(playerGraphics,time);lastPlayerDraw=time}
    acc=Math.min(acc+Math.min(delta,100),200);
    const cfg=perfController.config(batterySaver),step=cfg.simStep;let count=0;
    const simStart=performanceNow();while(acc>=step&&count<cfg.steps&&performanceNow()-simStart<12){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if((ops&1)===0)hybrid.step();if(ops%3===0)structures.step();if(++ops%6===0){const actions=autonomy.actions;autonomy.step();if(autonomy.actions>actions)sound.play('automation');factory.operate();living.step();intelligence.step();core.observe();core.refresh();if(factory.pendingEvents.length){const msg=factory.pendingEvents.shift();notice(msg);if(/damage|lost|overheat|warning|failure/i.test(msg))sound.play('warning')}}if(performanceNow()-simStart>12)break}}simCost=performanceNow()-simStart;
