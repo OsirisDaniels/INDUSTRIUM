@@ -9,7 +9,7 @@ import {CATALOG} from '../js/catalog.js?v=080-frontiers-final';
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world);
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let operations,lastOperations=0;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
+let operations;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
 const notice=s=>{$('notice').textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Fire',T.FIRE],['Lava',T.LAVA],['Oil',T.OIL],['Acid',T.ACID],['Ice',T.ICE],['Snow',T.SNOW],['Silt',T.SILT],['Steam',T.STEAM],['Erase',T.AIR],['Dig',-1]];
 const buildNames=['generator','drill','collector','furnace','solar','wind','storage','belt','pump','mixer','sifter','oilrig','distiller','combustor','battery','crystaldrill','surveyor','stabilizer','crusher','warehouse','deepdrill','refinery','hopper','kiln','press','filter','cooler','excavator','condenser','waterwheel'];
@@ -38,8 +38,8 @@ function makeTools(){
  $('zoomIn').onclick=()=>setZoom(1.25);
  $('zoomOut').onclick=()=>setZoom(.8);
  $('save').onclick=saveEngine;
- $('load').onclick=()=>{if(loadEngine()){notice('Engine save loaded');renderTerrain();renderMachines();status()}else notice('No engine save found')};
- $('new').onclick=()=>{if(!confirm('Create a new engine world? This replaces the engine test save only.'))return;factory.load({});world.generate();world.dirty=true;saveEngine();renderTerrain();renderMachines();status();notice('New engine world created')};
+ $('load').onclick=()=>{if(loadEngine()){notice('Engine save loaded');renderTerrain();renderMachines();status();operations?.render()}else notice('No engine save found')};
+ $('new').onclick=()=>{if(!confirm('Create a new engine world? This replaces the engine test save only.'))return;factory.load({});world.generate();world.dirty=true;saveEngine();renderTerrain();renderMachines();status();operations?.render();notice('New engine world created')};
  refreshButtons();
 }
 function setZoom(mult){if(!scene)return;const c=scene.cameras.main;c.setZoom(Phaser.Math.Clamp(c.zoom*mult,.7,3.5));clampCamera();status()}
@@ -68,7 +68,7 @@ function interact(pointer,first){
  const p=worldPoint(pointer);if(!valid(p.x,p.y))return;
  if(mode==='pan'){if(lastPointer){const c=scene.cameras.main;c.scrollX-=(pointer.x-lastPointer.x)/c.zoom;c.scrollY-=(pointer.y-lastPointer.y)/c.zoom;clampCamera()}lastPointer={x:pointer.x,y:pointer.y};return}
  if(mode==='inspect'){if(!first)return;const m=factory.machineAt(p.x,p.y);operations?.inspect(m);notice(m?(CATALOG[m.kind]?.title||m.kind)+' · '+(m.lastAction||'Ready')+' · Health '+(m.integrity??100)+'%':world.region(p.x).title+' · material '+world.at(p.x,p.y));return}
- if(mode==='build'){if(!first)return;const result=factory.place(building,p.x,p.y);notice(result||'Built '+(CATALOG[building]?.title||building));renderMachines();status();return}
+ if(mode==='build'){if(!first)return;const result=factory.place(building,p.x,p.y);notice(result||'Built '+(CATALOG[building]?.title||building));renderMachines();status();operations?.render();return}
  if(mode==='paint'){if(material===-1){const n=factory.dig(p.x,p.y,brush);if(first)notice('Excavated '+n+' terrain cells')}else world.paint(p.x,p.y,material,brush)}
 }
 function startPhaser(){
@@ -99,7 +99,7 @@ function startPhaser(){
    acc=Math.min(acc+Math.min(delta,100),200);
    const step=33.333;let count=0;
    while(acc>=step&&count<3){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();if(++ops%6===0)factory.operate()}}
-   if(time-lastFrame>55){renderTerrain();renderMachines();status();lastFrame=time}if(time-lastOperations>1700){operations?.render();lastOperations=time}
+   if(time-lastFrame>55){renderTerrain();renderMachines();status();lastFrame=time}
   }
  }
  try{game=new Phaser.Game({type:Phaser.AUTO,parent:'viewport',width:WIDTH,height:HEIGHT,backgroundColor:'#08121d',pixelArt:true,roundPixels:true,antialias:false,render:{pixelArt:true,antialias:false},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH,width:WIDTH,height:HEIGHT},input:{activePointers:3},scene:[FactoryScene],audio:{noAudio:true},banner:false})}
