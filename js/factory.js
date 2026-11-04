@@ -38,7 +38,7 @@ export class Factory{
  for(let radius=1;radius<=8;radius++)for(let yy=-radius;yy<=radius;yy++)for(let xx=-radius;xx<=radius;xx++){if(Math.max(Math.abs(xx),Math.abs(yy))!==radius)continue;const sx=m.x+xx,sy=m.y+yy;if(g.at(sx,sy)!==T.WATER)continue;g.set(sx,sy,T.AIR);g.set(outX,outY,T.WATER);this.automated++;m.lastAction='Pumping water';return}m.lastAction='Waiting for water'}
  excavate(m){const g=this.world,depth=m.kind==='deepdrill'?8:4;for(let dy=1;dy<=depth;dy++)for(let dx=-2;dx<=2;dx++){const x=m.x+dx,y=m.y+dy,v=g.at(x,y);if(v!==T.SAND&&v!==T.WET_SAND&&v!==T.STONE&&v!==T.SANDSOIL)continue;if(Math.random()>.4)continue;g.set(x,y,T.AIR);for(const [ox,oy] of [[-3,0],[3,0],[0,-2]])if(g.inside(x+ox,y+oy)&&g.at(x+ox,y+oy)===T.AIR){g.set(x+ox,y+oy,T.SAND);break}m.lastAction='Excavating earth';return}}
  mine(m){const max=m.kind==='deepdrill'?5+this.up.drill:m.kind==='drill'?2+this.up.drill:3,radius=m.kind==='deepdrill'?10:m.kind==='drill'?6:4;let amount=0;for(let k=0;k<max;k++){if(this.quantity(m)>=m.capacity)break;let found=false;for(let dy=-radius;dy<=radius&&!found;dy++)for(let dx=-radius;dx<=radius;dx++)if(dx*dx+dy*dy<=radius*radius&&this.world.at(m.x+dx,m.y+dy)===T.ORE){this.world.set(m.x+dx,m.y+dy,T.AIR);m.inventory.ore++;this.mined++;amount++;found=true;break}if(!found)break}if(m.kind!=='collector')this.excavate(m);m.lastAction=amount?'Mining '+amount+' ore':'Searching for ore';this.output(m,['ore'])}
- logistics(){const moved=new Set();for(const m of this.machines){if(!['belt','filter'].includes(m.kind))continue;const [dx,dy]=dirs[m.dir],target=this.machineAt(m.x+dx*6,m.y+dy*6);if(!target||target===m||moved.has(target))continue;for(const k of KEYS)if(this.transfer(m,target,k)){moved.add(target);break}}}
+ logistics(online=true){const moved=new Set();for(const m of this.machines){if(!['belt','filter'].includes(m.kind)||(m.kind==='filter'&&!online))continue;const [dx,dy]=dirs[m.dir],target=this.machineAt(m.x+dx*6,m.y+dy*6);if(!target||target===m||moved.has(target))continue;for(const k of KEYS)if(this.transfer(m,target,k)){moved.add(target);break}}}
  processSifter(m){this.intake(m,['wet_sand'],5);const n=Math.min(m.inventory.wet_sand,1+this.up.sifting);if(n){m.inventory.wet_sand-=n;m.inventory.residue+=n;this.sifted+=n;this.rp+=n;for(let i=0;i<n;i++)if(Math.random()<.25&&this.quantity(m)<m.capacity){m.inventory.gold++;this.goldProduced++;this.rp+=2}m.lastAction='Sifting '+n+' wet sand'}else m.lastAction='Needs wet sand';this.output(m,['gold']);this.output(m,['residue'])}
  processKiln(m){this.intake(m,['residue'],5);if(m.inventory.residue>0){m.inventory.residue--;m.inventory.burnt_residue++;m.lastAction='Firing residue'}else if(!m.inventory.residue)m.lastAction='Needs residue';this.output(m,['burnt_residue'])}
  processPress(m){this.intake(m,['burnt_residue'],5);if(m.inventory.burnt_residue>=4){m.inventory.burnt_residue-=4;m.inventory.gold++;this.goldProduced++;this.rp+=3;m.lastAction='Pressing gold'}else m.lastAction='Needs 4 burnt residue';this.output(m,['gold'])}
@@ -50,8 +50,8 @@ export class Factory{
  this.lastEvent=msg;this.pendingEvents.push(msg)}
  operate(){
  this.cycle++;const p=this.power();for(const m of this.machines){this.inventory(m);m.lastAction='Ready'}
- for(const m of this.machines)if(['belt','filter','hopper'].includes(m.kind)){const keys=m.kind==='filter'?['gold']:KEYS;this.intake(m,keys,m.kind==='hopper'?5:2)}
- this.logistics();
+ for(const m of this.machines)if(['belt','filter','hopper'].includes(m.kind)&&(!DEMAND[m.kind]||p.online)){const keys=m.kind==='filter'?['gold']:KEYS;this.intake(m,keys,m.kind==='hopper'?5:2)}
+ this.logistics(p.online);
  for(const m of this.machines){
  if(['generator','solar','wind','belt','filter','storage','warehouse'].includes(m.kind))continue;
  if(DEMAND[m.kind]&&!p.online){m.lastAction='Insufficient power';continue}
@@ -66,7 +66,7 @@ export class Factory{
  if(m.kind==='furnace'||m.kind==='refinery'){if(m.inventory.ore){const amount=Math.min(m.inventory.ore,(m.kind==='refinery'?3:1)+this.up.refining);m.inventory.ore-=amount;this.metal+=amount;this.refined+=amount;this.rp++;m.lastAction='Smelting '+amount+' metal'}else m.lastAction='Needs ore'}
  }
  // A second belt pass makes newly generated items visible to transport immediately.
- if(this.up.logistics>0)this.logistics();
+ for(let bonus=0;bonus<Math.min(5,this.up.logistics);bonus++)this.logistics(p.online);
  for(const m of this.machines)if(['storage','warehouse'].includes(m.kind)){if(m.inventory.ore){this.ore+=m.inventory.ore;m.inventory.ore=0}if(m.inventory.gold){this.gold+=m.inventory.gold;m.inventory.gold=0}}
  if(this.autoSell&&(this.ore>20||this.metal>10||this.gold>=3))this.sell();
  if(this.machines.length&&this.cycle%2===0){const upkeep=Math.max(1,Math.ceil(this.machines.filter(m=>m.kind!=='belt'&&m.kind!=='filter').length*.35));this.credits=Math.max(0,this.credits-upkeep);this.expenses+=upkeep}
