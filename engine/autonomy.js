@@ -8,6 +8,7 @@ export class Autonomy {
  step(){
   this.cycles++;if(this.cycles%8)return;
   const all=this.factory.machines;
+  for(const m of all)if(['belt','filter','hopper'].includes(m.kind))m.smartRoute=this.mode!=='off';
   if(this.mode==='off'||this.mode==='production'){for(const m of all)m.autoHold=false}
   else {
    for(const m of all)if(m.autoHold)m.autoHold=false;
