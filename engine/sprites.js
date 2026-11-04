@@ -40,10 +40,10 @@ export function createIndustrialSprites(scene,factory){
   const fast=quality==='Fast'||quality==='Ultra',alive=new Set(),list=factory.machines||[];
   const left=camera?camera.scrollX/4-12:0,right=camera?(camera.scrollX+camera.width/camera.zoom)/4+12:240;
   const top=camera?camera.scrollY/4-12:0,bottom=camera?(camera.scrollY+camera.height/camera.zoom)/4+12:160;
-  const stride=fast?2:1;
+  const stride=1; // Every visible machine stays visible; low tiers only reduce animation frequency.
   for(let i=0;i<list.length;i+=stride){
    const m=list[i];if(m.x<left||m.x>right||m.y<top||m.y>bottom)continue;
-   const id=m.id??i;alive.add(id);
+   const id=i;alive.add(id);
    let sp=sprites.get(id);if(!sp){sp=scene.add.image(0,0,atlasKey,'general-0').setDepth(5);sprites.set(id,sp)}
    const active=!m.autoHold&&!m.safetyHold&&m.integrity!==0;
    const frame=active?Math.floor(time/(fast?360:145)+i)%4:0;
