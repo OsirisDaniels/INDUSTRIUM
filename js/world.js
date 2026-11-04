@@ -1,17 +1,50 @@
 export const W=160,H=120,N=W*H;
-export const T={AIR:0,SAND:1,WATER:2,STONE:3,ORE:4,FIRE:5,METAL:6,STEAM:7};
-export const COLORS=[[11,20,29],[200,173,111],[55,139,202],[91,105,118],[193,130,70],[251,129,54],[158,214,211],[164,188,205]];
+export const T={AIR:0,SAND:1,WATER:2,STONE:3,ORE:4,FIRE:5,METAL:6,STEAM:7,WET_SAND:8};
+export const COLORS=[[11,20,29],[200,173,111],[55,139,202],[91,105,118],[193,130,70],[251,129,54],[158,214,211],[164,188,205],[133,113,86]];
 export class World{
- constructor(){this.grid=new Uint8Array(N);this.age=new Uint8Array(N);this.tick=0;this.dirty=true;}
+ constructor(){this.grid=new Uint8Array(N);this.age=new Uint8Array(N);this.tick=0;this.dirty=true}
  inside(x,y){return x>=0&&x<W&&y>=0&&y<H}
  at(x,y){return this.inside(x,y)?this.grid[y*W+x]:T.STONE}
  set(x,y,v){if(this.inside(x,y)){const i=y*W+x;this.grid[i]=v;this.age[i]=0;this.dirty=true}}
- swap(i,j){const g=this.grid,a=this.age;[g[i],g[j]]=[g[j],g[i]];[a[i],a[j]]=[a[j],a[i]];this.dirty=true}
- generate(){this.grid.fill(0);this.age.fill(0);for(let y=H-27;y<H;y++)for(let x=0;x<W;x++){const n=Math.random();this.set(x,y,n<.105?T.ORE:n<.78?T.STONE:T.SAND)}for(let x=0;x<W;x++)this.set(x,H-1,T.STONE);for(let x=20;x<55;x++)for(let y=93;y<110;y++)if(Math.random()<.23)this.set(x,y,T.ORE);for(let x=95;x<145;x++)for(let y=100;y<116;y++)if(Math.random()<.2)this.set(x,y,T.ORE)}
- simulate(){this.tick++;const g=this.grid,a=this.age,reverse=this.tick%2===0;for(let y=H-2;y>=1;y--)for(let z=0;z<W;z++){const x=reverse?W-z-1:z,i=y*W+x,v=g[i];if(v===0||v===T.STONE||v===T.METAL)continue;const side=Math.random()<.5?-1:1,below=i+W;
- if(v===T.FIRE||v===T.STEAM){a[i]++;if(a[i]>(v===T.FIRE?17:55)){this.set(x,y,v===T.STEAM&&Math.random()<.35?T.WATER:0);continue}if(v===T.FIRE){for(const d of [-1,1])if(this.at(x+d,y)===T.WATER){this.set(x+d,y,T.STEAM);this.set(x,y,T.STEAM);break}}if(y>0&&this.at(x,y-1)===0&&Math.random()<.75)this.swap(i,i-W);else if(this.inside(x+side,y)&&this.at(x+side,y)===0&&Math.random()<.4)this.swap(i,i+side);continue}
- if(v===T.SAND||v===T.ORE){if(g[below]===0||g[below]===T.WATER){this.swap(i,below);continue}for(const d of [side,-side])if(this.inside(x+d,y+1)&&(this.at(x+d,y+1)===0||this.at(x+d,y+1)===T.WATER)){this.swap(i,below+d);break}}
- if(v===T.WATER){if(g[below]===0){this.swap(i,below);continue}for(const d of [side,-side]){if(this.at(x+d,y+1)===0){this.swap(i,below+d);break}if(this.at(x+d,y)===0){this.swap(i,i+d);break}}}}}
+ swap(i,j){const g=this.grid,a=this.age,t=g[i],tAge=a[i];g[i]=g[j];a[i]=a[j];g[j]=t;a[j]=tAge;this.dirty=true}
+ generate(){
+ this.grid.fill(0);this.age.fill(0);this.tick=0;
+ const heights=new Int16Array(W);let h=H-29;
+ for(let x=0;x<W;x++){h=Math.max(H-38,Math.min(H-22,h+(Math.random()<.35?(Math.random()<.5?-1:1):0)));heights[x]=h}
+ for(let x=0;x<W;x++)for(let y=heights[x];y<H;y++){const depth=y-heights[x],r=Math.random();this.grid[y*W+x]=depth<4?(r<.78?T.SAND:T.STONE):r<.11?T.ORE:r<.79?T.STONE:T.SAND}
+ // Layered mineral seams and natural cavities, kept away from the bedrock.
+ for(let seam=0;seam<8;seam++){const cx=10+Math.floor(Math.random()*(W-20)),cy=H-9-Math.floor(Math.random()*16),rx=3+Math.floor(Math.random()*9),ry=2+Math.floor(Math.random()*4);for(let y=Math.max(0,cy-ry);y<Math.min(H-1,cy+ry);y++)for(let x=Math.max(0,cx-rx);x<Math.min(W,cx+rx);x++)if(((x-cx)/rx)**2+((y-cy)/ry)**2<1&&Math.random()<.82)this.grid[y*W+x]=T.ORE}
+ for(let pool=0;pool<3;pool++){const cx=18+Math.floor(Math.random()*(W-36)),cy=H-13-Math.floor(Math.random()*13),rx=5+Math.floor(Math.random()*8),ry=3+Math.floor(Math.random()*3);for(let y=Math.max(0,cy-ry);y<Math.min(H-1,cy+ry);y++)for(let x=Math.max(1,cx-rx);x<Math.min(W-1,cx+rx);x++)if(((x-cx)/rx)**2+((y-cy)/ry)**2<1)this.grid[y*W+x]=y>=cy?T.WATER:T.AIR}
+ for(let x=0;x<W;x++)this.grid[(H-1)*W+x]=T.STONE;
+ this.dirty=true
+ }
+ simulate(){
+ this.tick++;const g=this.grid,a=this.age,reverse=this.tick%2===0;
+ for(let y=H-2;y>=1;y--)for(let z=0;z<W;z++){
+ const x=reverse?W-z-1:z,i=y*W+x,v=g[i];if(v===T.AIR||v===T.STONE||v===T.METAL)continue;
+ const side=Math.random()<.5?-1:1,below=i+W;
+ if(v===T.FIRE||v===T.STEAM){
+ a[i]++;if(a[i]>(v===T.FIRE?18:85)){this.set(x,y,v===T.STEAM?T.WATER:T.AIR);continue}
+ if(v===T.FIRE){let reacted=false;for(const d of [W,-W,1,-1]){const j=i+d;if(j<0||j>=N||(d===1&&x===W-1)||(d===-1&&x===0))continue;if(g[j]===T.WATER){g[j]=T.STEAM;a[j]=0;reacted=true}else if(g[j]===T.WET_SAND){g[j]=T.SAND;a[j]=0;reacted=true}}if(reacted){this.set(x,y,T.STEAM);continue}}
+ if(y>1&&g[i-W]===T.AIR&&Math.random()<.85)this.swap(i,i-W);else if(x+side>=0&&x+side<W&&g[i+side]===T.AIR&&Math.random()<.35)this.swap(i,i+side);continue
+ }
+ if(v===T.SAND||v===T.ORE||v===T.WET_SAND){
+ if(v===T.SAND){for(const d of [W,side,-side]){if(d===side&&x+side>=W||d===-side&&x-side<0)continue;const j=i+d;if(j>=0&&j<N&&g[j]===T.WATER){g[i]=T.WET_SAND;g[j]=T.AIR;a[i]=0;this.dirty=true;break}}}
+ const grain=g[i];if(g[below]===T.AIR||g[below]===T.WATER){this.swap(i,below);continue}
+ // Wet sand is heavier and more cohesive; it slides less readily.
+ if(grain===T.WET_SAND&&Math.random()<.7)continue;
+ for(const d of [side,-side])if(x+d>=0&&x+d<W&&(g[below+d]===T.AIR||g[below+d]===T.WATER)){this.swap(i,below+d);break}
+ continue
+ }
+ if(v===T.WATER){
+ if(g[below]===T.AIR){this.swap(i,below);continue}
+ if(g[below]===T.SAND){g[below]=T.WET_SAND;g[i]=T.AIR;a[below]=0;this.dirty=true;continue}
+ let moved=false;for(const d of [side,-side])if(x+d>=0&&x+d<W&&g[below+d]===T.AIR){this.swap(i,below+d);moved=true;break}
+ if(moved)continue;
+ for(const d of [side,-side])if(x+d>=0&&x+d<W&&g[i+d]===T.AIR){this.swap(i,i+d);break}
+ }
+ }
+ }
  paint(x,y,v,r){for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++)if(dx*dx+dy*dy<=r*r)this.set(x+dx,y+dy,v)}
- import(arr){if(!arr||arr.length!==N)return false;this.grid=Uint8Array.from(arr);this.age=new Uint8Array(N);this.dirty=true;return true}
+ import(arr){if(!arr||arr.length!==N)return false;this.grid=Uint8Array.from(arr,v=>v>=0&&v<COLORS.length?v:T.AIR);this.age=new Uint8Array(N);this.dirty=true;return true}
 }
