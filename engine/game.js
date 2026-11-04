@@ -146,6 +146,7 @@ function startPhaser(){
  try{game=new Phaser.Game({type:Phaser.AUTO,parent:'viewport',width:WIDTH,height:HEIGHT,backgroundColor:'#08121d',pixelArt:true,roundPixels:true,antialias:false,render:{pixelArt:true,antialias:false},scale:{mode:Phaser.Scale.RESIZE,autoCenter:Phaser.Scale.NO_CENTER,width:window.innerWidth,height:window.innerHeight},input:{activePointers:3},scene:[FactoryScene],audio:{noAudio:true},banner:false})}
  catch(e){$('loading').textContent='Phaser startup failed';$('error').textContent=e.message}
 }
+document.addEventListener('pointerdown',e=>{if(e.target.closest('button')){sound.unlock();sound.play('click')}},{passive:true});
 makeTools();if(!loadEngine())world.generate();
 operations=createOperations(factory,{notice,save:()=>saveEngine(true),status});
 migration=createMigration({world,factory,dynamics,save:()=>saveEngine(true),refresh:()=>{renderTerrain();renderMachines();status();operations?.render();shell?.refreshCatalog();shell?.updateMenu()},notice,travel:i=>travel(i*60+30,90)});
