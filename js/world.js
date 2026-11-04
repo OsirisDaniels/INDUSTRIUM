@@ -65,7 +65,7 @@ export class World{
  this.tick++;const g=this.grid,a=this.age,blocks=this.blocks,flip=this.tick&1;
  if(this.chunked&&(this.chunkEpoch<0||this.tick-this.chunkEpoch>=12))this.refreshChunks();
  for(let y=H-2;y>=1;y--)for(let z=0;z<W;z++){
- const x=flip?W-z-1:z,i=y*W+x,v=g[i];if(this.chunked&&!this.activeChunks[(y>>4)*COLS+(x>>4)]){this.chunkSkips++;continue}this.chunkVisits++;if(!v||blocks[i]||STATIC.has(v))continue;
+ const x=flip?W-z-1:z,i=y*W+x,v=g[i];if(this.chunked&&!this.activeChunks[(y>>4)*COLS+(x>>4)]){const skip=flip?(x%CHUNK+1):(CHUNK-x%CHUNK);this.chunkSkips+=skip;z+=skip-1;continue}this.chunkVisits++;if(!v||blocks[i]||STATIC.has(v))continue;
  const below=i+W,side=((x*37+y*19+this.tick)&1)?1:-1;
  let adjacentWater=-1,adjacentHeat=false,adjacentSand=-1,adjacentOil=-1;
  if(v===T.SAND||v===T.WATER||v===T.ICE||v===T.SNOW||v===T.OIL||v===T.LAVA||v===T.ACID||v===T.FIRE||v===T.VAPOUR||v===T.RESIDUE||v===T.FUEL){
