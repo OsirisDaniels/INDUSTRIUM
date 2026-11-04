@@ -1,3 +1,4 @@
+import {createIndustrialSprites} from './sprites.js?v=0270';
 import {createStructures} from './structures.js?v=0250';
 import {createHybrid} from './hybrid.js?v=0260';
 import {Autonomy} from './autonomy.js?v=0233';
@@ -27,10 +28,11 @@ let coreUI,lastCoreRender=0,playerGraphics,lastPlayerDraw=0,lastFootstep=0,lastH
 try{perfController.setMode(localStorage.getItem('industrium-performance')||'auto')}catch(e){}
 try{world.chunked=localStorage.getItem('industrium-chunks')!=='off'}catch(e){}
 try{structures.enabled=localStorage.getItem('industrium-structures')!=='off'}catch(e){}
+try{spriteMode=localStorage.getItem('industrium-sprites')!=='off'}catch(e){}
 try{hybrid.enabled=localStorage.getItem('industrium-hybrid')!=='off';hybrid.detail=localStorage.getItem('industrium-hybrid-detail')||'auto'}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100);sound.setAmbience(localStorage.getItem('industrium-ambience')!=='off')}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0;let shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
+let lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0;let industrialSprites=null,spriteMode=true,shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
 const notice=s=>{const el=$('notice');if(el.textContent!==s)el.textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
 const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
@@ -77,6 +79,8 @@ function makeTools(){
  $('performanceMode').onchange=e=>{perfController.setMode(e.target.value);try{localStorage.setItem('industrium-performance',perfController.mode)}catch(err){}notice('Performance profile: '+perfController.mode)};
  $('chunkToggle').textContent=world.chunked?'Chunks On':'Chunks Off';$('chunkToggle').classList.toggle('active',world.chunked);
  $('chunkToggle').onclick=()=>{world.chunked=!world.chunked;world.chunkEpoch=-1;$('chunkToggle').textContent=world.chunked?'Chunks On':'Chunks Off';$('chunkToggle').classList.toggle('active',world.chunked);try{localStorage.setItem('industrium-chunks',world.chunked?'on':'off')}catch(e){}notice('Chunk acceleration '+(world.chunked?'enabled':'disabled'))};
+ $('spriteToggle').textContent=spriteMode?'Sprites On':'Sprites Off';$('spriteToggle').classList.toggle('active',spriteMode);
+ $('spriteToggle').onclick=()=>{spriteMode=!spriteMode;$('spriteToggle').textContent=spriteMode?'Sprites On':'Sprites Off';$('spriteToggle').classList.toggle('active',spriteMode);buildGraphics?.setVisible(!spriteMode);if(!spriteMode)industrialSprites?.destroy();else renderMachines(worldTime);try{localStorage.setItem('industrium-sprites',spriteMode?'on':'off')}catch(e){}notice('Animated machine sprites '+(spriteMode?'enabled':'disabled'))};
  $('structureToggle').textContent=structures.enabled?'Structures On':'Structures Off';$('structureToggle').classList.toggle('active',structures.enabled);
  $('structureToggle').onclick=()=>{structures.enabled=!structures.enabled;$('structureToggle').textContent=structures.enabled?'Structures On':'Structures Off';$('structureToggle').classList.toggle('active',structures.enabled);if(!structures.enabled)structureGraphics?.clear();try{localStorage.setItem('industrium-structures',structures.enabled?'on':'off')}catch(e){}notice('Structural physics '+(structures.enabled?'enabled':'disabled'))};
  $('hybridToggle').textContent=hybrid.enabled?'Hybrid On':'Hybrid Off';$('hybridToggle').classList.toggle('active',hybrid.enabled);
@@ -121,7 +125,7 @@ function drawMiniMap(force=false){
  const camera=scene.cameras.main,left=Math.max(0,camera.scrollX/SCALE),top=Math.max(0,camera.scrollY/SCALE),ww=Math.min(W,camera.width/camera.zoom/SCALE),hh=Math.min(H,camera.height/camera.zoom/SCALE);
  ctx.strokeStyle='#8ef4cf';ctx.lineWidth=1.4;ctx.strokeRect(left+.5,top+.5,ww,hh);
 }
-function renderMachines(time=0){const cam=scene?.cameras.main,view=cam?{left:cam.scrollX/SCALE,top:cam.scrollY/SCALE,right:(cam.scrollX+cam.width/cam.zoom)/SCALE,bottom:(cam.scrollY+cam.height/cam.zoom)/SCALE}:null;drawMachines(buildGraphics,factory,time,view,perfController.name)}
+function renderMachines(time=0){if(spriteMode&&industrialSprites){buildGraphics?.setVisible(false);industrialSprites.draw(time,scene?.cameras.main,perfController.name);return}buildGraphics?.setVisible(true);const cam=scene?.cameras.main,view=cam?{left:cam.scrollX/SCALE,top:cam.scrollY/SCALE,right:(cam.scrollX+cam.width/cam.zoom)/SCALE,bottom:(cam.scrollY+cam.height/cam.zoom)/SCALE}:null;drawMachines(buildGraphics,factory,time,view,perfController.name)}
 function renderEffects(time){drawAtmosphere(fxGraphics,world,time,showEffects,showGrid,scene?.cameras.main.zoom||1,factory.weather?living.weather:[]);if(hybridGraphics){if(showEffects&&hybrid.enabled)hybrid.draw(hybridGraphics,time,hybrid.detail==='auto'?perfController.name:hybrid.detail,factory.weather?living.weather:[],scene?.cameras.main);else hybridGraphics.clear()}if(structureGraphics){if(showEffects&&structures.enabled)structures.draw(structureGraphics,scene?.cameras.main,hybrid.detail);else structureGraphics.clear()}if(ambienceGraphics)ambienceGraphics.clear()}
 function worldPoint(pointer){const p=scene.cameras.main.getWorldPoint(pointer.x,pointer.y);return{x:Math.floor(p.x/SCALE),y:Math.floor(p.y/SCALE)}}
 function interact(pointer,first){
@@ -142,6 +146,7 @@ function startPhaser(){
    texture=this.textures.addCanvas('planet-terrain',canvas);
    terrain=this.add.image(0,0,'planet-terrain').setOrigin(0,0).setScale(SCALE).setDepth(0);
    buildGraphics=this.add.graphics().setDepth(5);
+   industrialSprites=createIndustrialSprites(this,factory);
    overlayGraphics=this.add.graphics().setDepth(7);
    previewGraphics=this.add.graphics().setDepth(9);
    ambienceGraphics=this.add.graphics().setDepth(2);
