@@ -1,3 +1,4 @@
+import {createGameMenu} from './menu.js';
 import {CATALOG,unlocked,unlockHint} from './catalog.js';
 import {World,W,H,COLORS,T} from './world.js';
 import {Factory,PRICES,COLORS as MC,SUPPLY,DEMAND} from './factory.js';
@@ -33,7 +34,7 @@ if(mode==='rotate'){if(factory.rotate(x,y))note('Output direction rotated');else
 if(mode==='inspect'){inspectMachine(x,y);document.body.classList.add('info-open');return}
 if(typeof selected==='string'){const err=factory.place(selected,x,y);note(err||CATALOG[selected].title+' installed');refresh();return}if(selected===-1){const n=factory.dig(x,y,brush);if(n){$('#notice').textContent='Excavated '+n+' valuable particles'}return}world.paint(x,y,selected,brush)}
 canvas.addEventListener('pointerdown',e=>{painting=true;lastPoint=null;canvas.setPointerCapture(e.pointerId);act(e)});canvas.addEventListener('pointermove',e=>{if(painting&&(mode==='pan'||(mode==='paint'&&typeof selected==='number')))act(e);else if(mode==='paint'&&typeof selected==='string'){hoverPoint=screenToWorld(e);world.dirty=true}});canvas.addEventListener('pointerup',()=>{painting=false;lastPoint=null;hoverPoint=null;world.dirty=true});canvas.addEventListener('pointercancel',()=>{painting=false;lastPoint=null;hoverPoint=null;world.dirty=true});
-$('#brush').oninput=e=>{$('#brushVal').textContent=brush=+e.target.value};$('#pause').onclick=()=>{paused=!paused;$('#pause').textContent=paused?'Resume':'Pause'};$('#sell').onclick=()=>{note('Sold inventory for $'+factory.sell());refresh()};$('#grant').onclick=()=>{factory.credits+=2500;note('Testing grant received: $2500');refresh();save(world,factory)};$('#autoSell').onclick=()=>{factory.autoSell=!factory.autoSell;refresh()};$('#weatherToggle').onclick=()=>{factory.weather=!factory.weather;note('Living-world events '+(factory.weather?'enabled':'disabled'));refresh();save(world,factory)};$('#speed').onclick=()=>{rate=rate===1?2:rate===2?4:1;refresh()};$('#reset').onclick=()=>{if(!confirm('Start a new factory? Your existing saved world will be replaced.'))return;factory.load({});world.generate();save(world,factory);note('New factory created');refresh()};$('#save').onclick=()=>note(save(world,factory)?'Factory saved':'Unable to save');
+$('#brush').oninput=e=>{$('#brushVal').textContent=brush=+e.target.value};$('#pause').onclick=()=>{if(gameMenu?.isVisible()){gameMenu.hide();return}paused=!paused;$('#pause').textContent=paused?'Resume':'Pause'};$('#sell').onclick=()=>{note('Sold inventory for $'+factory.sell());refresh()};$('#grant').onclick=()=>{factory.credits+=2500;note('Testing grant received: $2500');refresh();save(world,factory)};$('#autoSell').onclick=()=>{factory.autoSell=!factory.autoSell;refresh()};$('#weatherToggle').onclick=()=>{factory.weather=!factory.weather;note('Living-world events '+(factory.weather?'enabled':'disabled'));refresh();save(world,factory)};$('#speed').onclick=()=>{rate=rate===1?2:rate===2?4:1;refresh()};$('#reset').onclick=()=>gameMenu.show('play');$('#save').onclick=()=>note(save(world,factory)?'Factory saved':'Unable to save');
 $('#pan').onclick=()=>{document.body.classList.remove('tools-open','info-open');mode=mode==='pan'?'paint':'pan';$('#overlay').textContent=mode.toUpperCase()+' MODE'};$('#inspect').onclick=()=>{document.body.classList.remove('tools-open');mode='inspect';$('#overlay').textContent='INSPECT MODE'};$('#rotate').onclick=()=>{document.body.classList.remove('tools-open','info-open');mode='rotate';$('#overlay').textContent='ROTATE OUTPUT'};$('#zoomIn').onclick=()=>{zoom=Math.min(4,zoom*2);offsetX=Math.min(offsetX,W-W/zoom);offsetY=Math.min(offsetY,H-H/zoom);world.dirty=true};$('#zoomOut').onclick=()=>{zoom=Math.max(1,zoom/2);offsetX=Math.min(offsetX,W-W/zoom);offsetY=Math.min(offsetY,H-H/zoom);world.dirty=true};
 
 const guideSteps=[
@@ -56,4 +57,14 @@ function renderGoals(){const node=$('#goals');if(!node)return;node.replaceChildr
 
 showGuide();
 
-note(load(world,factory));refresh();let simTicks=0,lastFrame=0,acc=0;function frame(time){const dt=lastFrame?Math.min(85,time-lastFrame):16;lastFrame=time;visualTick++;if(!paused&&!document.hidden){acc+=dt;let iterations=0;while(acc>=33.3&&iterations<3){acc-=33.3;iterations++;for(let i=0;i<rate;i++){world.simulate();simTicks++;if(simTicks%10===0){factory.operate();while(factory.pendingEvents.length)note(factory.pendingEvents.shift())}if(simTicks%20===0)refresh()}}if(iterations===3)acc=Math.min(acc,33.3)}draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);setInterval(()=>save(world,factory),20000);document.addEventListener('visibilitychange',()=>{if(document.hidden)save(world,factory);lastFrame=0});
+note(load(world,factory));refresh();
+let gameMenu=null,lowPower=false;
+function resetWorld(){factory.load({});world.generate();save(world,factory);note('New factory created');refresh()}
+gameMenu=createGameMenu({
+ world,factory,save,refresh,note,
+ onPause:()=>{paused=true;$('#pause').textContent='Resume'},
+ onResume:()=>{paused=false;$('#pause').textContent='Pause'},
+ onNewWorld:resetWorld,
+ onSettings:settings=>{lowPower=!!settings.battery;$('#hudHint').hidden=!settings.showHints}
+});
+let simTicks=0,lastFrame=0,acc=0;function frame(time){const dt=lastFrame?Math.min(85,time-lastFrame):16;lastFrame=time;visualTick++;if(!paused&&!document.hidden){acc+=dt;let iterations=0;while(acc>=33.3&&iterations<3){acc-=33.3;iterations++;for(let i=0;i<rate;i++){world.simulate();simTicks++;if(simTicks%10===0){factory.operate();while(factory.pendingEvents.length)note(factory.pendingEvents.shift())}if(simTicks%20===0)refresh()}}if(iterations===3)acc=Math.min(acc,33.3)}if(!lowPower||visualTick%3===0||world.dirty)draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);setInterval(()=>save(world,factory),20000);document.addEventListener('visibilitychange',()=>{if(document.hidden)save(world,factory);lastFrame=0});
