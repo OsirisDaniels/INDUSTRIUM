@@ -1,8 +1,8 @@
-import {createGameMenu} from './menu.js?v=080-frontiers';
-import {CATALOG,unlocked,unlockHint} from './catalog.js?v=080-frontiers';
-import {World,W,H,COLORS,T,REGIONS} from './world.js?v=080-frontiers';
-import {Factory,PRICES,COLORS as MC,SUPPLY,DEMAND} from './factory.js?v=080-frontiers';
-import {save,load} from './save.js?v=080-frontiers';
+import {createGameMenu} from './menu.js?v=080-frontiers-final';
+import {CATALOG,unlocked,unlockHint} from './catalog.js?v=080-frontiers-final';
+import {World,W,H,COLORS,T,REGIONS} from './world.js?v=080-frontiers-final';
+import {Factory,PRICES,COLORS as MC,SUPPLY,DEMAND} from './factory.js?v=080-frontiers-final';
+import {save,load} from './save.js?v=080-frontiers-final';
 const RESTRICTED_MATERIALS=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL]);
 const $=q=>document.querySelector(q),world=new World(),factory=new Factory(world),canvas=$('#world'),ctx=canvas.getContext('2d',{alpha:false});let selected=1,brush=3,paused=false,rate=1,painting=false,tab='materials',zoom=1.5,offsetX=0,offsetY=34,mode='paint',lastPoint=null,events=[],hoverPoint=null,visualTick=0;
 function note(s){$('#notice').textContent=s;events.unshift(s);events=events.slice(0,6);$('#log').innerHTML=events.map(x=>'<p>'+x.replaceAll('<','&lt;')+'</p>').join('')}
