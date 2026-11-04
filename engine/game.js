@@ -1,3 +1,4 @@
+import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0100';
 import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
 import {Factory,PRICES,COLORS as MACHINE_COLORS} from '../js/factory.js?v=080-frontiers-final';
@@ -7,7 +8,7 @@ import {CATALOG} from '../js/catalog.js?v=080-frontiers-final';
 // INDUSTRIUM's deterministic cellular physics and factory rules are kept as game systems.
 // Engine saves use a separate key so the stable release is never overwritten.
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
-const world=new World(),factory=new Factory(world);
+const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory);
 const WIDTH=960,HEIGHT=640,SCALE=4;
 let operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
 const notice=s=>{$('notice').textContent=s};
@@ -20,6 +21,8 @@ function status(){
  $('power').textContent='Power '+p.production+' / '+p.use;
  $('credits').textContent='Credits $'+Math.floor(factory.credits);
  $('machines').textContent=factory.machines.length+' machines';
+ $('heat').textContent='Heat '+dynamics.heatPeak;
+ $('pollution').textContent='Pollution '+dynamics.pollutionPeak;
 }
 function refreshButtons(){
  for(const b of document.querySelectorAll('[data-material]'))b.classList.toggle('active',mode==='paint'&&material===Number(b.dataset.material));
@@ -37,18 +40,19 @@ function makeTools(){
  $('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;refreshButtons()};
  $('effects').onclick=()=>{showEffects=!showEffects;$('effects').classList.toggle('active',showEffects);$('effects').textContent='Effects '+(showEffects?'On':'Off');if(!showEffects)fxGraphics?.clear()};
  $('grid').onclick=()=>{showGrid=!showGrid;$('grid').classList.toggle('active',showGrid);$('grid').textContent='Grid '+(showGrid?'On':'Off')};
+ $('environment').onclick=()=>{dynamics.active=!dynamics.active;$('environment').textContent='Dynamics '+(dynamics.active?'On':'Off');$('environment').classList.toggle('active',dynamics.active);notice('Environmental simulation '+(dynamics.active?'enabled':'paused'))};
  $('home').onclick=()=>{if(!scene)return;scene.cameras.main.centerOn(480,350);clampCamera();status()};
  $('zoomIn').onclick=()=>setZoom(1.25);
  $('zoomOut').onclick=()=>setZoom(.8);
  $('save').onclick=saveEngine;
  $('load').onclick=()=>{if(loadEngine()){notice('Engine save loaded');renderTerrain();renderMachines();status();operations?.render()}else notice('No engine save found')};
- $('new').onclick=()=>{if(!confirm('Create a new engine world? This replaces the engine test save only.'))return;factory.load({});world.generate();world.dirty=true;saveEngine();renderTerrain();renderMachines();status();operations?.render();notice('New engine world created')};
+ $('new').onclick=()=>{if(!confirm('Create a new engine world? This replaces the engine test save only.'))return;factory.load({});world.generate();dynamics.reset();world.dirty=true;saveEngine();renderTerrain();renderMachines();status();operations?.render();notice('New engine world created')};
  refreshButtons();
 }
 function setZoom(mult){if(!scene)return;const c=scene.cameras.main;c.setZoom(Phaser.Math.Clamp(c.zoom*mult,.7,3.5));clampCamera();status()}
 function clampCamera(){if(!scene)return;const c=scene.cameras.main;c.setScroll(Phaser.Math.Clamp(c.scrollX,0,Math.max(0,WIDTH-WIDTH/c.zoom)),Phaser.Math.Clamp(c.scrollY,0,Math.max(0,HEIGHT-HEIGHT/c.zoom)))}
-function saveEngine(){try{localStorage.setItem(KEY,JSON.stringify({grid:Array.from(world.grid),seed:world.seed,factory:factory.serialize(),savedAt:Date.now()}));notice('Engine world saved');return true}catch(e){notice('Save failed: '+e.message);return false}}
-function loadEngine(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||!world.import(s.grid))return false;world.seed=s.seed||0;factory.load(s.factory||{});return true}catch(e){return false}}
+function saveEngine(){try{localStorage.setItem(KEY,JSON.stringify({grid:Array.from(world.grid),seed:world.seed,factory:factory.serialize(),environment:dynamics.snapshot(),savedAt:Date.now()}));notice('Engine world saved');return true}catch(e){notice('Save failed: '+e.message);return false}}
+function loadEngine(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||!world.import(s.grid))return false;world.seed=s.seed||0;factory.load(s.factory||{});dynamics.restore(s.environment);return true}catch(e){return false}}
 function renderTerrain(){
  if(!texture)return;
  const pixels=texture.getContext().createImageData(W,H),d=pixels.data;
@@ -120,7 +124,7 @@ function startPhaser(){
    if(paused)return;
    acc=Math.min(acc+Math.min(delta,100),200);
    const step=33.333;let count=0;
-   while(acc>=step&&count<3){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();if(++ops%6===0)factory.operate()}}
+   while(acc>=step&&count<3){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0)factory.operate()}}
    if(time-lastFrame>65){if(world.dirty||time-lastFrame>450)renderTerrain();renderMachines(time);renderEffects(time);status();lastFrame=time}
    if(time-autoSaveTime>90000){autoSaveTime=time;saveEngine()}
    frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';frameCount=0;perfTime=time}
