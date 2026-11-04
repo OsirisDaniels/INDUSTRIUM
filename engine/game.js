@@ -1,5 +1,5 @@
 import {Autonomy} from './autonomy.js?v=0231';
-import {createPlayer} from './player.js?v=0231';
+import {createPlayer} from './player.js?v=0232';
 import {LivingWorld} from './living.js?v=0231';
 import {Intelligence} from './intelligence.js?v=0230';
 import {createCore} from './core.js?v=0230';
@@ -21,7 +21,7 @@ import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-fina
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory),sound=createSound(),perfController=createPerformance();
 const living=new LivingWorld(world,factory,dynamics),intelligence=new Intelligence(world,factory,dynamics,living),autonomy=new Autonomy(factory,intelligence),player=createPlayer(world),core=createCore(factory,dynamics,living,intelligence);
-let coreUI,lastCoreRender=0,playerGraphics,lastPlayerDraw=0,lastFootstep=0,joyAxis=0,joyPointer=null,joyJumpLatched=false,pressStart=null,touchGesture=false;
+let coreUI,lastCoreRender=0,playerGraphics,lastPlayerDraw=0,lastFootstep=0,lastHazardSound=0,joyAxis=0,joyPointer=null,joyJumpLatched=false,pressStart=null,touchGesture=false;
 try{perfController.setMode(localStorage.getItem('industrium-performance')||'auto')}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100);sound.setAmbience(localStorage.getItem('industrium-ambience')!=='off')}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
@@ -43,13 +43,13 @@ function status(){
  $('worldBiome').textContent=region.title.toUpperCase()+' · '+living.getWeather(x).toUpperCase();$('worldCoords').textContent=x+', '+(c?Math.max(0,Math.min(H-1,Math.floor(c.midPoint.y/SCALE))):0)+' · '+factory.machines.length+' active installations';
  $('worldMode').textContent=mode==='build'?'CONSTRUCTION':mode==='paint'?'EXCAVATION':mode==='inspect'?'MACHINE INSPECTOR':mode==='walk'?'ON FOOT':'CAMERA CONTROL';
  $('worldTime').textContent='CYCLE '+Math.max(1,Math.floor(world.tick/900)+1);
- $('playerStatus').textContent='X '+Math.round(player.x)+' · Y '+Math.round(player.y)+(player.follow?' · FOLLOW':'');
+ $('playerTitle').textContent=player.style.toUpperCase()+' 01';$('playerStatus').textContent='HP '+Math.round(player.health)+' · Energy '+Math.round(player.stamina);
 }
 function refreshButtons(){
  for(const b of document.querySelectorAll('[data-material]'))b.classList.toggle('active',mode==='paint'&&material===Number(b.dataset.material));
  for(const b of document.querySelectorAll('[data-machine]'))b.classList.toggle('active',mode==='build'&&building===b.dataset.machine);
  for(const id of ['paint','pan','walk','inspect'])$(id).classList.toggle('active',mode===id);
- $('paint').textContent=factory.creative?'Draw':'Excavate';$('touchControls').hidden=mode!=='walk';$('followPlayer').textContent=player.follow?'Follow On':'Follow Off';$('followPlayer').classList.toggle('active',player.follow);
+ $('playerStyle').value=player.style;$('paint').textContent=factory.creative?'Draw':'Excavate';$('touchControls').hidden=mode!=='walk';$('followPlayer').textContent=player.follow?'Follow On':'Follow Off';$('followPlayer').classList.toggle('active',player.follow);
  $('pause').textContent=paused?'Resume':'Pause';
  $('speed').textContent=speed+'× speed';$('toolName').textContent='Tool: '+(mode==='build'?(CATALOG[building]?.title||building):mode==='paint'?(materialNames.find(m=>m[1]===material)?.[0]||'Paint'):mode==='inspect'?'Inspector':mode==='walk'?'Engineer':'Camera');
 }
@@ -64,6 +64,7 @@ function makeTools(){
  $('grid').onclick=()=>{showGrid=!showGrid;$('grid').classList.toggle('active',showGrid);$('grid').textContent='Grid '+(showGrid?'On':'Off')};
  $('soundToggle').textContent=sound.enabled?'Sound On':'Sound Off';$('soundToggle').classList.toggle('active',sound.enabled);$('soundVolume').value=Math.round(sound.volume*100);
  $('soundToggle').onclick=()=>{sound.setEnabled(!sound.enabled);$('soundToggle').textContent=sound.enabled?'Sound On':'Sound Off';$('soundToggle').classList.toggle('active',sound.enabled);try{localStorage.setItem('industrium-sound',sound.enabled?'on':'off')}catch(e){}if(sound.enabled)sound.play('select')};
+ $('playerStyle').onchange=e=>{player.style=e.target.value;sound.play('select');saveEngine(true);refreshButtons()};
  $('soundAmbience').textContent=sound.ambience?'Ambience On':'Ambience Off';$('soundAmbience').classList.toggle('active',sound.ambience);
  $('soundAmbience').onclick=()=>{sound.setAmbience(!sound.ambience);$('soundAmbience').textContent=sound.ambience?'Ambience On':'Ambience Off';$('soundAmbience').classList.toggle('active',sound.ambience);try{localStorage.setItem('industrium-ambience',sound.ambience?'on':'off')}catch(e){}};
  $('soundVolume').oninput=e=>{sound.setVolume(Number(e.target.value)/100);try{localStorage.setItem('industrium-volume',e.target.value)}catch(e){}};
@@ -197,7 +198,7 @@ function startPhaser(){
    const keyLeft=this.keys?.A?.isDown||this.keys?.LEFT?.isDown,keyRight=this.keys?.D?.isDown||this.keys?.RIGHT?.isDown;
    player.setInput(mode==='walk'?(joyAxis+(keyRight?1:0)-(keyLeft?1:0)):0,false);
    if(mode==='walk'&&(this.keys?.W?.isDown||this.keys?.UP?.isDown||this.keys?.SPACE?.isDown)&&player.grounded){player.jump();sound.play('jump')}
-   const wasGrounded=player.grounded;player.step(delta);if(!wasGrounded&&player.grounded)sound.play('land');
+   const wasGrounded=player.grounded,oldHealth=player.health;player.step(delta);if(!wasGrounded&&player.grounded)sound.play('land');if(player.health<oldHealth&&time-lastHazardSound>3200){sound.play('warning');lastHazardSound=time}
    if(mode==='walk'&&player.moving&&time-lastFootstep>320){lastFootstep=time;sound.play('footstep')}
    if(player.follow){camera.centerOn(Phaser.Math.Linear(camera.midPoint.x,player.x*SCALE,.12),Phaser.Math.Linear(camera.midPoint.y,player.y*SCALE-40,.12));clampCamera()}
    if(time-lastPlayerDraw>45){player.draw(playerGraphics,time);lastPlayerDraw=time}
