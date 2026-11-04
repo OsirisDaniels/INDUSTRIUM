@@ -9,3 +9,80 @@
 @media(min-width:850px){.gameSheet{bottom:22px;left:auto;right:18px;transform:none;width:min(420px,38vw);max-height:min(80dvh,760px)}.gameDock{left:20px;transform:none;bottom:20px;width:min(510px,50vw)}.modeRail{bottom:113px;left:20px}.worldNotice{bottom:168px;left:20px}.cameraRail{top:40%}}
 @media(max-width:430px){.brand strong{font-size:14px;letter-spacing:1.7px}.brand small{font-size:8px}.engineTag{max-width:84px;font-size:8px}.status span{font-size:10px;padding:6px 7px}.sheetHeader{padding:11px 12px}.sheetBody{padding:10px 11px 15px}.tools{grid-template-columns:repeat(2,minmax(0,1fr))}.materialGrid{grid-template-columns:repeat(4,minmax(0,1fr))}.materialGrid button{font-size:10px;padding:8px 1px}.gameSheet{max-height:64dvh}.modeRail button{padding:9px 8px;min-width:0}.cameraRail{right:6px}.cameraRail button{width:37px;height:39px}.menuPanel{padding:19px}.menuPanel h1{letter-spacing:1.5px}}
 @media(max-height:650px){.gameSheet{max-height:58dvh}.menuPanel{max-height:90dvh}.worldNotice{bottom:130px}.modeRail{bottom:88px}.gameDock{height:62px}.gameSheet{bottom:76px}}
+
+
+/* ALPHA 0.15 · HYBRID INDUSTRIAL SANDBOX */
+:root{--back:#060d16;--panel:#0b1c2a;--panel2:#142e3b;--line:#315b67;--ink:#edf8f2;--sub:#a7bec7;--accent:#8ff5c5;--gold:#eec17c}
+body{background:#060d16}
+#viewport{background:radial-gradient(ellipse at 48% 40%,#19394a 0%,#091521 65%,#050c15 100%)}
+.gameHud{background:linear-gradient(180deg,#06111dfc,#0b1c2cf2 76%,#091a2600);padding-bottom:18px}
+.topRow{min-height:61px}
+.brand strong{font-size:18px;letter-spacing:3.1px;font-weight:900;text-shadow:0 2px 12px #6ac7a735}
+.brand small{font-size:9px;color:#8feac5}
+.engineTag{border:1px solid #2b5260;background:#102a36aa;border-radius:7px;padding:5px 7px}
+.status{gap:5px}
+.status span{background:#0c2534df;border:1px solid #2b4e5c;border-radius:6px;padding:7px 10px;font-size:10px;letter-spacing:.15px}
+.status #toolName{color:#b6f9e2;border-color:#346c5d}
+.worldInfo{position:fixed;z-index:9;left:12px;top:calc(125px + env(safe-area-inset-top));padding:12px 14px;display:grid;gap:5px;min-width:175px;max-width:230px;border:1px solid #365b65;border-left:3px solid #82e6be;border-radius:10px;background:linear-gradient(135deg,#102e3ad9,#091823e9);backdrop-filter:blur(14px);box-shadow:0 8px 24px #0005;pointer-events:none}
+.worldInfo strong{font-size:13px;letter-spacing:1.4px}
+.worldInfo small{font-size:10px;color:#a7c3c9}
+.worldInfoLine{display:flex;justify-content:space-between;gap:9px;border-top:1px solid #335261;padding-top:7px;margin-top:3px;font-size:9px;letter-spacing:.5px;color:#88d2b6}
+.cameraRail{top:34%}
+.cameraRail button{background:linear-gradient(150deg,#183947f2,#0c2130f2);border-color:#4a7380;border-radius:12px;box-shadow:0 4px 12px #0008}
+.cameraRail button:active{background:#32745e}
+.gameDock{background:linear-gradient(145deg,#112c39f8,#091a27f9);border:1px solid #3c6970;box-shadow:0 10px 35px #000d,inset 0 1px #ffffff0c}
+.gameDock button{transition:background .12s,color .12s,transform .12s}
+.gameDock button.active{background:linear-gradient(140deg,#285f53,#173f40);border-color:#75c7a9;box-shadow:inset 0 1px #b7ffdb30}
+.gameDock button:active{transform:translateY(1px)}
+.dockIcon{font-size:25px;color:#9adcc7}
+.gameSheet{background:linear-gradient(160deg,#112d3afc,#0a1a29fb);border:1px solid #4c727b;box-shadow:0 10px 50px #000e}
+.sheetHeader{background:linear-gradient(115deg,#173d45,#0e2635)}
+.sheetHeader h2{font-size:18px}
+.sheetBody{scrollbar-color:#3a726e #122b36}
+.tools button{background:linear-gradient(155deg,#193948,#112735);border-color:#335864;min-height:53px;transition:border-color .12s,background .12s}
+.tools button:hover{border-color:#68bda7}
+.tools button.active{background:linear-gradient(150deg,#2c7864,#16473f);border-color:#a2f4cd}
+.tools button.locked{filter:saturate(.65)}
+.materialGrid button{font-weight:650}
+.selectionDetails{background:linear-gradient(130deg,#183848,#0d2633);border-color:#47717b}
+.operation{background:linear-gradient(130deg,#17323e,#102633);border-color:#3b5e68}
+.operation button{background:#21483f;border-color:#4c8574}
+.menuBackdrop{background:radial-gradient(ellipse at 50% 18%,#1d4d4eea,#07121bf8 62%)}
+.menuPanel{background:linear-gradient(145deg,#193e45,#0b202d 66%,#0a1a26);border:1px solid #5d9a8c;box-shadow:0 30px 90px #000e,inset 0 1px #ffffff1a}
+.menuPanel h1{background:linear-gradient(110deg,#f2fff6,#8fe3c6);background-clip:text;-webkit-background-clip:text;color:transparent}
+.menuStats>div{background:#0c2b34;border-color:#3b6670}
+.menuStats strong{color:#f0fff6}
+.menuActions button{background:#14323d;border-color:#426a73}
+.primaryAction{background:linear-gradient(120deg,#3b9573,#246755);border-color:#a6f5cf;box-shadow:0 4px 18px #0f583f55}
+.modeRail{border:1px solid #315968;background:#0a1b29d6;border-radius:12px;padding:4px;backdrop-filter:blur(14px);bottom:calc(101px + env(safe-area-inset-bottom))}
+.modeRail button{background:#152c38;border-color:transparent;border-radius:8px}
+.modeRail button.active{background:#286e5a;border-color:#73d4aa}
+.worldNotice{bottom:calc(158px + env(safe-area-inset-bottom))}
+.worldNotice #notice{background:#0a2330e6;border:1px solid #356c69;border-left:3px solid #8ff5c5;box-shadow:0 5px 20px #0006}
+.previewHint{position:fixed;z-index:12;top:calc(115px + env(safe-area-inset-top));right:12px;max-width:min(52vw,290px);background:#0a2730ed;border:1px solid #548b82;border-radius:9px;padding:9px 11px;font-size:10px;letter-spacing:.5px;color:#c7f7df;pointer-events:none;box-shadow:0 6px 22px #0008}
+.miniMapPanel{position:fixed;z-index:13;right:10px;top:calc(180px + env(safe-area-inset-top));width:min(56vw,280px);background:#0c2531f7;border:1px solid #49797d;border-radius:13px;padding:10px;box-shadow:0 10px 35px #000b;backdrop-filter:blur(14px)}
+.miniHeader{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px}
+.miniHeader strong{font-size:10px;letter-spacing:1.3px;color:#a2f4d1}
+.miniHeader button{padding:3px 9px;font-size:18px}
+.miniMapPanel canvas{width:100%;height:auto;aspect-ratio:3/2;image-rendering:pixelated;border:1px solid #3e7479;border-radius:5px;touch-action:manipulation;cursor:crosshair}
+.miniMapPanel small{display:block;margin-top:6px;color:#a3c2c8;font-size:10px}
+@media(max-width:430px){
+ .worldInfo{top:calc(119px + env(safe-area-inset-top));left:8px;min-width:135px;max-width:172px;padding:9px 10px;gap:3px}
+ .worldInfo strong{font-size:11px;letter-spacing:.8px}
+ .worldInfo small{font-size:9px}
+ .worldInfoLine{font-size:8px}
+ .previewHint{top:calc(118px + env(safe-area-inset-top));right:7px;max-width:47vw;padding:7px 8px;font-size:9px}
+ .miniMapPanel{top:calc(205px + env(safe-area-inset-top));right:7px;width:min(60vw,240px)}
+ .cameraRail{top:40%}
+ .cameraRail button{width:38px;height:40px}
+ .gameDock{height:72px}
+ .modeRail{bottom:calc(97px + env(safe-area-inset-bottom))}
+ .worldNotice{bottom:calc(151px + env(safe-area-inset-bottom))}
+}
+@media(max-height:650px){
+ .worldInfo{top:calc(95px + env(safe-area-inset-top))}
+ .previewHint{top:calc(96px + env(safe-area-inset-top))}
+ .miniMapPanel{top:calc(145px + env(safe-area-inset-top))}
+ .modeRail{bottom:calc(86px + env(safe-area-inset-bottom))}
+ .worldNotice{bottom:calc(133px + env(safe-area-inset-bottom))}
+}
