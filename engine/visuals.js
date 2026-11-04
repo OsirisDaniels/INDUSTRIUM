@@ -1,6 +1,6 @@
 // INDUSTRIUM Alpha 0.15: deterministic hybrid pixel-terrain and vector-machine art.
 import {W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
-import {COLORS as MACHINE_COLOURS,DEMAND} from '../js/factory.js?v=0230';
+import {COLORS as MACHINE_COLOURS,DEMAND} from '../js/factory.js?v=0233';
 const hash=(x,y,seed=0)=>{let n=Math.imul(x+seed,374761393)+Math.imul(y+seed*3,668265263);n=Math.imul(n^(n>>>13),1274126177);return(n^(n>>>16))>>>0};
 const clamp=v=>Math.max(0,Math.min(255,v|0));
 const water=new Set([T.WATER,T.OIL,T.LAVA,T.ACID]);
