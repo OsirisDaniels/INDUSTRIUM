@@ -3,9 +3,9 @@ import {W,H,REGIONS,COLORS} from '../js/world.js?v=080-frontiers-final';
 const $=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const OLD='industrium-save-v3',SLOT='industrium-slot-',ENGINE_SLOT='industrium-engine-slot-';
 const read=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}};
-export function createMigration({world,factory,dynamics,save,refresh,notice,travel}){
+export function createMigration({world,factory,dynamics,living,intelligence,autonomy,player,core,save,refresh,notice,travel}){
  const panel=$('migrationBody');let tab='import';
- const snapshot=()=>({version:5,grid:Array.from(world.grid),seed:world.seed,factory:factory.serialize(),environment:dynamics.snapshot(),savedAt:Date.now()});
+ const snapshot=()=>({version:6,grid:Array.from(world.grid),seed:world.seed,factory:factory.serialize(),environment:dynamics.snapshot(),living:living.snapshot(),intelligence:intelligence.snapshot(),autonomy:autonomy.snapshot(),player:player.snapshot(),savedAt:Date.now()});
  const valid=s=>s&&Array.isArray(s.grid)&&[W*H,160*120].includes(s.grid.length)&&s.factory&&typeof s.factory==='object';
  const original=()=>[{key:OLD,label:'Original autosave',data:read(OLD)},...[1,2,3].map(i=>({key:SLOT+i,label:'Original Slot '+i,data:read(SLOT+i)}))];
  const slots=()=>[1,2,3].map(i=>({key:ENGINE_SLOT+i,label:'Phaser Slot '+i,data:read(ENGINE_SLOT+i)}));
@@ -13,7 +13,7 @@ export function createMigration({world,factory,dynamics,save,refresh,notice,trav
   if(!valid(s))return false;
   if(!world.import(s.grid))return false;
   if(Number.isFinite(s.seed))world.seed=s.seed;
-  factory.load(s.factory);dynamics.restore(s.environment);refresh();save();return true;
+  factory.load(s.factory);dynamics.restore(s.environment);living.restore(s.living);intelligence.restore(s.intelligence);autonomy.restore(s.autonomy);player.restore(s.player);core.reset();refresh();save();return true;
  }
  const item=(title,detail,action,button,disabled=false)=>'<div class="operation"><strong>'+esc(title)+'</strong><small>'+esc(detail)+'</small><button data-migrate="'+esc(action)+'" '+(disabled?'disabled':'')+'>'+esc(button)+'</button></div>';
  function render(){
