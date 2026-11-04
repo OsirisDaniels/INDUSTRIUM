@@ -58,7 +58,7 @@ export function drawMachines(g,factory,time=0){
  for(const m of factory.machines){
   const x=m.x*4,y=m.y*4,kind=m.kind,p=palettes[kind]||['#34434f',MACHINE_COLOURS[kind]||'#8ab5c7','#ecffff'];
   const dark=hex(p[0]),main=hex(p[1]),light=hex(p[2]),phase=time*.004+m.x*.31;
-  const active=(DEMAND[kind]||0)===0||powered,health=m.integrity??100;
+  const active=!m.safetyHold&&!m.autoHold&&((DEMAND[kind]||0)===0||powered),health=m.integrity??100;
   g.fillStyle(0x020b12,.58);g.fillRoundedRect(x-13,y-10,28,27,4);
   g.fillStyle(0x081b27,1);g.fillRoundedRect(x-14,y-14,28,28,4);
   g.lineStyle(1,0x4d6874,.95);g.strokeRoundedRect(x-13,y-13,26,26,4);
