@@ -56,11 +56,11 @@ export function createSound(){
    case 'contract':tone(440,.1,'sine',.13,570);tone(620,.15,'sine',.1,840,.1);break;
   }
  }
- function step({weather='Clear',machines=0,moving=false,hot=false,now=performance.now()}={}){
+ function step({weather='Clear',machines=0,nearbyKinds=[],moving=false,hot=false,now=performance.now()}={}){
   if(!ambience||!enabled||!ctx||ctx.state!=='running'||now-lastAtmosphere<1600||typeof document!=='undefined'&&document.hidden)return;
   lastAtmosphere=now;
   if(weather==='Rain')play('rain');else if(weather==='Windstorm')play('wind');else if(weather==='Ashfall')play('ash');
-  else if(weather==='Heatwave'&&hot)play('lava');else if(machines>0)play(machines>6?'drill':'hum');
+  else if(weather==='Heatwave'&&hot)play('lava');else if(nearbyKinds.includes('furnace')||nearbyKinds.includes('refinery')||nearbyKinds.includes('kiln'))play('furnace');else if(nearbyKinds.some(k=>['drill','deepdrill','oilrig','excavator'].includes(k)))play('drill');else if(machines>0)play('hum');
   if(moving)play('footstep');
  }
  function setEnabled(on){enabled=!!on;if(!enabled&&ctx&&ctx.state==='running')ctx.suspend().catch(()=>{});if(enabled)unlock()}
