@@ -1,4 +1,4 @@
-import {createGameShell} from './shell.js?v=0140';
+import {createGameShell} from './shell.js?v=0141';
 import {createMigration} from './migration.js?v=0130';
 import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0100';
