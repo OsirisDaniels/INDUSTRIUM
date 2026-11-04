@@ -1,4 +1,4 @@
-import {W,H,COLORS,REGIONS} from './world.js?v=080-frontiers';
+import {W,H,COLORS,REGIONS} from './world.js?v=080-frontiers-final';
 // INDUSTRIUM's standalone game-shell UI. All game state remains in the existing simulation.
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
