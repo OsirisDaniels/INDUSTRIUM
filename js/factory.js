@@ -77,11 +77,12 @@ export class Factory{
  else{let count=0;for(let i=0;i<100&&count<13;i++){const x=5+Math.floor(Math.random()*(W-10)),y=96+Math.floor(Math.random()*(H-105));if(g.at(x,y)!==T.WATER)continue;g.set(x,y,T.STEAM);count++}msg=count?'Geothermal pulse: '+count+' water cells became steam':'Geothermal readings stable'}
  this.lastEvent=msg;this.pendingEvents.push(msg)}
  operate(){
- this.cycle++;if(this.cycle%4===0)this.hazardDamage();for(const m of this.machines)if(m.kind==='combustor'){if(m.burn>0)m.burn--;else if(m.inventory.fuel>0){m.inventory.fuel--;m.burn=18;this.fuelBurned++;this.rp++;m.lastAction='Combusting fuel'}}const p=this.power();for(const m of this.machines){this.inventory(m);m.lastAction='Ready'}
- for(const m of this.machines)if(['belt','filter','hopper'].includes(m.kind)&&(!DEMAND[m.kind]||p.online)){const keys=m.kind==='filter'?['gold','crystal']:KEYS;this.intake(m,keys,m.kind==='hopper'?5:2)}
+ this.cycle++;if(this.cycle%4===0)this.hazardDamage();for(const m of this.machines)if(m.kind==='combustor'&&!m.safetyHold){if(m.burn>0)m.burn--;else if(m.inventory.fuel>0){m.inventory.fuel--;m.burn=18;this.fuelBurned++;this.rp++;m.lastAction='Combusting fuel'}}const p=this.power();for(const m of this.machines){this.inventory(m);m.lastAction=m.safetyHold?'Safety shutdown':'Ready'}
+ for(const m of this.machines)if(!m.safetyHold&&['belt','filter','hopper'].includes(m.kind)&&(!DEMAND[m.kind]||p.online)){const keys=m.kind==='filter'?['gold','crystal']:KEYS;this.intake(m,keys,m.kind==='hopper'?5:2)}
  this.logistics(p.online);
  for(const m of this.machines){
  if(['generator','solar','wind','belt','filter','storage','warehouse','waterwheel','combustor','battery'].includes(m.kind))continue;
+ if(m.safetyHold){m.lastAction='Safety shutdown';continue}
  if(DEMAND[m.kind]&&!p.online){m.lastAction='Insufficient power';continue}
  if(['drill','collector','deepdrill'].includes(m.kind))this.mine(m);
  if(m.kind==='pump')this.pumpWater(m);
