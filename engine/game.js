@@ -1,11 +1,11 @@
-import {Autonomy} from './autonomy.js?v=0230';
-import {createPlayer} from './player.js?v=0230';
-import {LivingWorld} from './living.js?v=0230';
+import {Autonomy} from './autonomy.js?v=0231';
+import {createPlayer} from './player.js?v=0231';
+import {LivingWorld} from './living.js?v=0231';
 import {Intelligence} from './intelligence.js?v=0230';
 import {createCore} from './core.js?v=0230';
 import {createCoreUI} from './core-ui.js?v=0230';
 import {createPerformance} from './performance.js?v=0170';
-import {createSound} from './sound.js?v=0230';
+import {createSound} from './sound.js?v=0231';
 import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0230';
 import {createGameShell} from './shell.js?v=0230';
 import {createMigration} from './migration.js?v=0230';
@@ -57,7 +57,7 @@ function makeTools(){
  const mat=$('materials'),machines=$('factoryTools');
  for(const [name,id] of materialNames){const b=document.createElement('button');b.textContent=name;b.dataset.material=id;b.dataset.restricted=restrictedMaterials.has(id)?'1':'0';if(id>=0&&COLORS[id]){const color=COLORS[id];b.style.borderLeft='4px solid rgb('+color.join(',')+')'}b.onclick=()=>{if(!factory.creative&&id!==-1){notice('Career Mode: free material spawning is locked. Use Excavate or switch to Creative.');sound.play('error');return}material=id;mode='paint';refreshButtons();sound.play('select');notice(name+' tool selected')};mat.append(b)}
  for(const kind of buildNames){const b=document.createElement('button');b.textContent=(CATALOG[kind]?.title||kind)+' · $'+PRICES[kind];b.dataset.machine=kind;b.dataset.price=PRICES[kind];b.dataset.category=CATALOG[kind]?.category||'Other';b.onclick=()=>{if(!unlocked(kind,factory)){notice((CATALOG[kind]?.title||kind)+' locked: '+unlockHint(kind));shell?.refreshCatalog();return}building=kind;mode='build';refreshButtons();sound.play('select');notice('Tap the world to place '+(CATALOG[kind]?.title||kind))};machines.append(b)}
- for(const id of ['paint','pan','walk','inspect'])$(id).onclick=()=>{if(id==='paint'&&!factory.creative)material=-1;mode=id;sound.play('select');refreshButtons();notice(id==='pan'?'Drag with one finger to pan. Pinch with two to zoom.':id==='walk'?'Use the thumb joystick and JUMP, or tap to walk.':id==='inspect'?'Tap machinery to inspect':'Tap or drag to edit terrain')};
+ for(const id of ['paint','pan','walk','inspect'])$(id).onclick=()=>{if(id==='paint'&&!factory.creative)material=-1;if(id==='walk')player.follow=true;mode=id;sound.play('select');refreshButtons();notice(id==='pan'?'Drag with one finger to pan. Pinch with two to zoom.':id==='walk'?'Use the thumb joystick and JUMP, or tap to walk.':id==='inspect'?'Tap machinery to inspect':'Tap or drag to edit terrain')};
  $('pause').onclick=()=>{paused=!paused;sound.play(paused?'pause':'resume');refreshButtons()};
  $('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;sound.play('click');refreshButtons()};
  $('effects').onclick=()=>{showEffects=!showEffects;$('effects').classList.toggle('active',showEffects);$('effects').textContent='Effects '+(showEffects?'On':'Off');if(!showEffects)fxGraphics?.clear()};
@@ -204,7 +204,7 @@ function startPhaser(){
    acc=Math.min(acc+Math.min(delta,100),200);
    const cfg=perfController.config(batterySaver),step=cfg.simStep;let count=0;
    const simStart=performanceNow();while(acc>=step&&count<cfg.steps&&performanceNow()-simStart<12){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){const actions=autonomy.actions;autonomy.step();if(autonomy.actions>actions)sound.play('automation');factory.operate();living.step();intelligence.step();core.observe();core.refresh();if(factory.pendingEvents.length){const msg=factory.pendingEvents.shift();notice(msg);if(/damage|lost|overheat|warning|failure/i.test(msg))sound.play('warning')}}if(performanceNow()-simStart>12)break}}simCost=performanceNow()-simStart;
-   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();if(coreUI?.open&&time-lastCoreRender>1900){coreUI.render();lastCoreRender=time}lastHud=time}drawMiniMap();sound.step({weather:living.getWeather(player.x),machines:factory.machines.length,nearbyKinds:factory.machines.filter(m=>Math.abs(m.x-player.x)<28&&Math.abs(m.y-player.y)<28&&!m.autoHold&&!m.safetyHold).map(m=>m.kind),moving:player.moving,hot:dynamics.heatPeak>150,now:time});lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time);
+   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();if(coreUI?.open&&time-lastCoreRender>4300){coreUI.render();lastCoreRender=time}lastHud=time}drawMiniMap();sound.step({weather:living.getWeather(player.x),machines:factory.machines.length,nearbyKinds:factory.machines.filter(m=>Math.abs(m.x-player.x)<28&&Math.abs(m.y-player.y)<28&&!m.autoHold&&!m.safetyHold).map(m=>m.kind),moving:player.moving,hot:dynamics.heatPeak>150,now:time});lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time);
    if(time-autoSaveTime>90000){autoSaveTime=time;if('requestIdleCallback' in window)window.requestIdleCallback(()=>saveEngine(true),{timeout:10000});else saveEngine(true)}
    frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';const d=$('perfDetail'),stats=perfController.stats;if(d)d.textContent=perfController.name+' · '+stats.work.toFixed(1)+' ms/frame · Physics '+stats.simulation.toFixed(1)+' ms · Graphics '+stats.graphics.toFixed(1)+' ms';frameCount=0;perfTime=time}
   }
