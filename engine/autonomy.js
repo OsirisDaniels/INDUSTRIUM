@@ -1,5 +1,5 @@
 // Alpha 0.21: deterministic bounded automation. No background tasks or hidden spending outside policy.
-import {DEMAND} from '../js/factory.js?v=0230';
+import {DEMAND} from '../js/factory.js?v=0233';
 const rank={pump:1,cooler:2,filter:2,drill:4,deepdrill:5,collector:4,oilrig:6,refinery:9,distiller:8,press:8,furnace:7,mixer:6};
 export class Autonomy {
  constructor(factory,intelligence){this.factory=factory;this.intelligence=intelligence;this.mode='balanced';this.autoService=true;this.cycles=0;this.actions=0;this.logs=[]}
