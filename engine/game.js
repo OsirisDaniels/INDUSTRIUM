@@ -3,7 +3,7 @@ import {createMigration} from './migration.js?v=0130';
 import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0100';
 import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
-import {Factory,PRICES,COLORS as MACHINE_COLORS} from '../js/factory.js?v=080-frontiers-final';
+import {Factory,PRICES,DEMAND,COLORS as MACHINE_COLORS} from '../js/factory.js?v=080-frontiers-final';
 import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-final';
 
 // Phaser owns the game scene, graphics texture, camera, pointer input and update loop.
@@ -12,7 +12,7 @@ import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-fina
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory);
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let shell,migration,operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
+let shell,migration,operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
 const notice=s=>{$('notice').textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
 const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
@@ -32,7 +32,7 @@ function refreshButtons(){
  for(const b of document.querySelectorAll('[data-machine]'))b.classList.toggle('active',mode==='build'&&building===b.dataset.machine);
  for(const id of ['paint','pan','inspect'])$(id).classList.toggle('active',mode===id);
  $('pause').textContent=paused?'Resume':'Pause';
- $('speed').textContent=speed+'× speed';
+ $('speed').textContent=speed+'× speed';$('toolName').textContent='Tool: '+(mode==='build'?(CATALOG[building]?.title||building):mode==='paint'?(materialNames.find(m=>m[1]===material)?.[0]||'Paint'):mode==='inspect'?'Inspector':'Camera');
 }
 function makeTools(){
  const mat=$('materials'),machines=$('factoryTools');
@@ -43,6 +43,7 @@ function makeTools(){
  $('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;refreshButtons()};
  $('effects').onclick=()=>{showEffects=!showEffects;$('effects').classList.toggle('active',showEffects);$('effects').textContent='Effects '+(showEffects?'On':'Off');if(!showEffects)fxGraphics?.clear()};
  $('grid').onclick=()=>{showGrid=!showGrid;$('grid').classList.toggle('active',showGrid);$('grid').textContent='Grid '+(showGrid?'On':'Off')};
+ $('batterySaver').onclick=()=>{batterySaver=!batterySaver;$('batterySaver').classList.toggle('active',batterySaver);$('batterySaver').textContent='Saver '+(batterySaver?'On':'Off');notice('Battery saver '+(batterySaver?'enabled: reduced render and simulation frequency':'disabled'))};
  $('environment').onclick=()=>{dynamics.active=!dynamics.active;$('environment').textContent='Dynamics '+(dynamics.active?'On':'Off');$('environment').classList.toggle('active',dynamics.active);notice('Environmental simulation '+(dynamics.active?'enabled':'paused'))};
  $('home').onclick=()=>{if(!scene)return;scene.cameras.main.centerOn(480,350);clampCamera();status()};
  $('zoomIn').onclick=()=>setZoom(1.25);
@@ -66,7 +67,7 @@ function renderTerrain(){
 }
 function renderMachines(time=0){
  if(!buildGraphics)return;
- buildGraphics.clear();
+ buildGraphics.clear();const livePower=factory.power();
  for(const m of factory.machines){
   const color=Phaser.Display.Color.HexStringToColor(MACHINE_COLORS[m.kind]||'#c8d6dc').color,x=m.x*SCALE,y=m.y*SCALE;
   buildGraphics.fillStyle(0x07131d,1);buildGraphics.fillRect(x-13,y-13,26,26);
@@ -76,6 +77,12 @@ function renderMachines(time=0){
   if(['generator','furnace','refinery','combustor','kiln','distiller'].includes(m.kind)){buildGraphics.fillStyle(0xffbd63,.3+pulse*.6);buildGraphics.fillRect(x-6,y-6,12,12)}
   if(['drill','deepdrill','crystaldrill','excavator','oilrig'].includes(m.kind)){buildGraphics.lineStyle(2,0xe4f5f5,.5+pulse*.5);buildGraphics.lineBetween(x-7,y+6,x-7+Math.floor(pulse*12),y+6)}
   if(['belt','pump','hopper'].includes(m.kind)){buildGraphics.fillStyle(0x06151b,.8);buildGraphics.fillCircle(x-5+pulse*10,y,2.5)}
+  if(['belt','filter','hopper','pump','mixer','excavator','oilrig','distiller','condenser'].includes(m.kind)){
+   const dir=(m.dir||0)&3,dx=[1,0,-1,0][dir],dy=[0,1,0,-1][dir];
+   buildGraphics.lineStyle(2,0x09212a,1);buildGraphics.lineBetween(x-dx*5,y-dy*5,x+dx*4,y+dy*4);
+   buildGraphics.fillStyle(0x09212a,1);buildGraphics.fillTriangle(x+dx*7,y+dy*7,x+dx*2-dy*4,y+dy*2+dx*4,x+dx*2+dy*4,y+dy*2-dx*4);
+  }
+  if(m.kind!=='belt'&&m.kind!=='filter'){const bad=(m.integrity??100)<35||!!DEMAND[m.kind]&&!livePower.online;buildGraphics.fillStyle(bad?0xff6f65:0x78ecc3,1);buildGraphics.fillCircle(x+8,y-8,2.7)}
   if((m.integrity??100)<40){buildGraphics.lineStyle(2,0xff6655);buildGraphics.strokeRect(x-12,y-12,24,24)}
  }
 }
@@ -130,9 +137,9 @@ function startPhaser(){
   update(time,delta){
    if(paused)return;
    acc=Math.min(acc+Math.min(delta,100),200);
-   const step=33.333;let count=0;
-   while(acc>=step&&count<3){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0)factory.operate()}}
-   if(time-lastFrame>65){if(world.dirty||time-lastFrame>450)renderTerrain();renderMachines(time);renderEffects(time);status();lastFrame=time}
+   const step=batterySaver?50:33.333;let count=0;
+   while(acc>=step&&count<3){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){factory.operate();if(factory.pendingEvents.length)notice(factory.pendingEvents.shift())}}}
+   if(time-lastFrame>(batterySaver?110:65)){if(world.dirty||time-lastFrame>450)renderTerrain();renderMachines(time);renderEffects(time);status();lastFrame=time}
    if(time-autoSaveTime>90000){autoSaveTime=time;saveEngine(true)}
    frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';frameCount=0;perfTime=time}
   }
