@@ -61,7 +61,7 @@ export class World{
  const x=flip?W-z-1:z,i=y*W+x,v=g[i];if(!v||blocks[i]||STATIC.has(v))continue;
  const below=i+W,side=((x*37+y*19+this.tick)&1)?1:-1;
  let adjacentWater=-1,adjacentHeat=false,adjacentSand=-1,adjacentOil=-1;
- if(v===T.SAND||v===T.WATER||v===T.ICE||v===T.SNOW||v===T.OIL||v===T.LAVA||v===T.ACID||v===T.FIRE||v===T.VAPOUR||v===T.RESIDUE){
+ if(v===T.SAND||v===T.WATER||v===T.ICE||v===T.SNOW||v===T.OIL||v===T.LAVA||v===T.ACID||v===T.FIRE||v===T.VAPOUR||v===T.RESIDUE||v===T.FUEL){
  for(let d=0;d<4;d++){if((d===2&&x===0)||(d===3&&x===W-1))continue;const j=i+NEIGHBORS[d];if(j<0||j>=N)continue;const o=g[j];if(o===T.WATER&&adjacentWater<0)adjacentWater=j;if(o===T.SAND&&adjacentSand<0)adjacentSand=j;if(o===T.OIL&&adjacentOil<0)adjacentOil=j;if(o===T.LAVA||o===T.FIRE)adjacentHeat=true}
  }
  if(v===T.ICE||v===T.SNOW){if(adjacentHeat||(v===T.SNOW&&this.tick%90===0&&y<86)){this.set(x,y,T.WATER)}else if(v===T.SNOW){if(g[below]===T.AIR&&this.canMove(below))this.swap(i,below);else for(const d of [side,-side])if(x+d>=0&&x+d<W&&g[below+d]===T.AIR&&this.canMove(below+d)){this.swap(i,below+d);break}}continue}
@@ -86,7 +86,7 @@ export class World{
  }
  if(LIQUID.has(v)){
  if(v===T.WATER&&adjacentSand>=0){g[adjacentSand]=T.WET_SAND;g[i]=T.WET_SAND;a[adjacentSand]=a[i]=0;this.dirty=true;continue}
- if(v===T.OIL&&adjacentHeat){this.set(x,y,T.FIRE);continue}
+ if(v===T.OIL&&adjacentHeat){this.set(x,y,((this.tick+i)%3===0)?T.VAPOUR:T.FIRE);continue}
  if(v===T.ACID&&this.tick%7===0){for(let d=0;d<4;d++){if((d===2&&x===0)||(d===3&&x===W-1))continue;const j=i+NEIGHBORS[d],other=g[j];if([T.SANDSOIL,T.STONE,T.ORE,T.BASALT].includes(other)&&this.canMove(j)&&((this.tick+i+j)%11===0)){g[j]=T.SILT;a[j]=0;this.dirty=true;break}}}
  if(v===T.OIL&&g[i-W]===T.WATER&&this.canMove(i-W)){this.swap(i,i-W);continue}
  if(v===T.WATER&&g[below]===T.OIL&&this.canMove(below)){this.swap(i,below);continue}
