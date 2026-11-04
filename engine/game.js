@@ -124,8 +124,16 @@ function startPhaser(){
    worldTime=time;
    const camera=this.cameras.main;
    if(Math.abs(camera.zoom-targetZoom)>.003){camera.setZoom(Phaser.Math.Linear(camera.zoom,targetZoom,Math.min(1,delta*.012)));clampCamera()}
-   if(hoverCell&&mode!=='pan'){previewReason=drawPlacement(previewGraphics,{mode,cell:hoverCell,brush,material,building,factory,world});const label=$('previewHint');label.hidden=false;label.textContent=mode==='build'?(previewReason?'BLOCKED · '+previewReason:'READY · '+(CATALOG[building]?.title||building)+' · $'+PRICES[building]):mode==='inspect'?'INSPECT · Tap a machine':'DRAW · '+(materialNames.find(m=>m[1]===material)?.[0]||'Terrain')+' · Brush '+brush}
-   else{previewGraphics?.clear();$('previewHint').hidden=true}
+   const previewKey=hoverCell&&mode!=='pan'?[mode,hoverCell.x,hoverCell.y,brush,material,building,factory.credits,factory.machines.length].join(':'):'';
+   if(previewKey!==lastPreviewKey){
+    lastPreviewKey=previewKey;
+    if(previewKey){
+     previewReason=drawPlacement(previewGraphics,{mode,cell:hoverCell,brush,material,building,factory,world});
+     const label=$('previewHint');label.hidden=false;
+     const message=mode==='build'?(previewReason?'BLOCKED · '+previewReason:'READY · '+(CATALOG[building]?.title||building)+' · $'+PRICES[building]):mode==='inspect'?'INSPECT · Tap a machine':'DRAW · '+(materialNames.find(m=>m[1]===material)?.[0]||'Terrain')+' · Brush '+brush;
+     if(message!==lastPreviewText){label.textContent=message;lastPreviewText=message}
+    }else{previewGraphics?.clear();$('previewHint').hidden=true}
+   }
    if(paused)return;
    acc=Math.min(acc+Math.min(delta,100),200);
    const step=batterySaver?60:40;let count=0;
