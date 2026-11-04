@@ -20,7 +20,7 @@ const buildNames=['generator','drill','collector','furnace','solar','wind','stor
 const valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function status(){
  const p=factory.power(),c=scene?.cameras.main,x=c?Math.max(0,Math.min(W-1,Math.floor(c.midPoint.x/SCALE))):0;
- $('region').textContent=world.region(x).title;
+ const region=world.region(x);$('region').textContent=region.title;if(!factory.regionVisits.includes(region.id))factory.regionVisits.push(region.id);
  $('power').textContent='Power '+p.production+' / '+p.use;
  $('credits').textContent='Credits $'+Math.floor(factory.credits);
  $('machines').textContent=factory.machines.length+' machines';
@@ -47,14 +47,16 @@ function makeTools(){
  $('home').onclick=()=>{if(!scene)return;scene.cameras.main.centerOn(480,350);clampCamera();status()};
  $('zoomIn').onclick=()=>setZoom(1.25);
  $('zoomOut').onclick=()=>setZoom(.8);
- $('save').onclick=saveEngine;
- $('load').onclick=()=>{if(loadEngine()){notice('Engine save loaded');renderTerrain();renderMachines();status();operations?.render();migration?.render()}else notice('No engine save found')};
- $('new').onclick=()=>{if(!confirm('Create a new engine world? This replaces the engine test save only.'))return;factory.load({});world.generate();dynamics.reset();world.dirty=true;saveEngine();renderTerrain();renderMachines();status();operations?.render();migration?.render();notice('New engine world created')};
+ $('save').onclick=()=>saveEngine();
+ $('load').onclick=()=>{if(loadEngine()){notice('Engine save loaded');renderTerrain();renderMachines();status();operations?.render();migration?.render();shell?.updateMenu();shell?.refreshCatalog();shell?.syncMaterials()}else notice('No engine save found')};
+ $('new').onclick=()=>{if(!confirm('Replace the Phaser autosave with a new random planet?'))return;newWorld()};
  refreshButtons();
 }
 function setZoom(mult){if(!scene)return;const c=scene.cameras.main;c.setZoom(Phaser.Math.Clamp(c.zoom*mult,.7,3.5));clampCamera();status()}
-function clampCamera(){if(!scene)return;const c=scene.cameras.main;c.setScroll(Phaser.Math.Clamp(c.scrollX,0,Math.max(0,WIDTH-WIDTH/c.zoom)),Phaser.Math.Clamp(c.scrollY,0,Math.max(0,HEIGHT-HEIGHT/c.zoom)))}
-function saveEngine(){try{localStorage.setItem(KEY,JSON.stringify({grid:Array.from(world.grid),seed:world.seed,factory:factory.serialize(),environment:dynamics.snapshot(),savedAt:Date.now()}));notice('Engine world saved');return true}catch(e){notice('Save failed: '+e.message);return false}}
+function clampCamera(){if(!scene)return;const c=scene.cameras.main,visW=c.width/c.zoom,visH=c.height/c.zoom;if(visW>=WIDTH)c.centerOn(WIDTH/2,c.midPoint.y);if(visH>=HEIGHT)c.centerOn(c.midPoint.x,HEIGHT/2);c.setScroll(Phaser.Math.Clamp(c.scrollX,0,Math.max(0,WIDTH-visW)),Phaser.Math.Clamp(c.scrollY,0,Math.max(0,HEIGHT-visH)))}
+function saveEngine(silent=false){try{localStorage.setItem(KEY,JSON.stringify({grid:Array.from(world.grid),seed:world.seed,factory:factory.serialize(),environment:dynamics.snapshot(),savedAt:Date.now()}));if(!silent)notice('Factory saved');return true}catch(e){notice('Save failed: '+e.message);return false}}
+function newWorld(seed){const creative=factory.creative,weather=factory.weather;world.generate(seed);factory.load({creative,weather});dynamics.reset();world.dirty=true;saveEngine(true);renderTerrain();renderMachines();status();operations?.render();migration?.render();shell?.refreshCatalog();shell?.updateMenu();notice('New planet ready · Seed '+world.seed)}
+function travel(x,y){if(!scene)return;scene.cameras.main.centerOn(x*SCALE,y*SCALE);clampCamera();status()}
 function loadEngine(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||!world.import(s.grid))return false;world.seed=s.seed||0;factory.load(s.factory||{});dynamics.restore(s.environment);return true}catch(e){return false}}
 function renderTerrain(){
  if(!texture)return;
@@ -96,7 +98,7 @@ function interact(pointer,first){
  if(mode==='pan'){if(lastPointer){const c=scene.cameras.main;c.scrollX-=(pointer.x-lastPointer.x)/c.zoom;c.scrollY-=(pointer.y-lastPointer.y)/c.zoom;clampCamera()}lastPointer={x:pointer.x,y:pointer.y};return}
  if(mode==='inspect'){if(!first)return;const m=factory.machineAt(p.x,p.y);operations?.inspect(m);notice(m?(CATALOG[m.kind]?.title||m.kind)+' · '+(m.lastAction||'Ready')+' · Health '+(m.integrity??100)+'%':world.region(p.x).title+' · material '+world.at(p.x,p.y));return}
  if(mode==='build'){if(!first)return;const result=factory.place(building,p.x,p.y);notice(result||'Built '+(CATALOG[building]?.title||building));renderMachines();status();operations?.render();return}
- if(mode==='paint'){if(material===-1){const n=factory.dig(p.x,p.y,brush);if(first)notice('Excavated '+n+' terrain cells')}else world.paint(p.x,p.y,material,brush)}
+ if(mode==='paint'){if(restrictedMaterials.has(material)&&!factory.creative){if(first)notice('Enable Creative Sandbox to place rare resources');return}if(material===-1){const n=factory.dig(p.x,p.y,brush);if(first)notice('Excavated '+n+' terrain cells')}else world.paint(p.x,p.y,material,brush)}
 }
 function startPhaser(){
  if(!window.Phaser){$('error').textContent='Phaser could not load. Check your connection and try reloading.';$('loading').textContent='Game engine unavailable';return}
