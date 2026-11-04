@@ -19,9 +19,9 @@ Implemented 16 × 16 active-chunk occupancy, wake-up propagation, periodic recon
 
 Implemented optional bounded structural sampling with exposed-roof stress, limited collapse of fragile tiles, confined-liquid pressure release, and heat/acid exposure damage to machinery. Added subtle visible stress/pressure indicators, Settings toggle, and versioned summary/history in autosaves and manual slots. Old saves restore with default structural state. These are simplified structural rules, not a complete finite-element solver. **Pipe networks and burst mechanics remain planned**, as do stronger load-bearing supports and dedicated pressure debugging.
 
-## Stage 4: Hybrid renderer 2.0 (planned)
+## Stage 4: Hybrid renderer 2.0 (Alpha 0.26 initial implementation)
 
-Introduce sprite atlases for industrial machines and engineer animations, optional shader effects for fluids/heat, and visible-region culling. Test WebGL and Canvas fallbacks on Android. Avoid a wholesale renderer migration or introducing a mandatory CDN dependency.
+**Implemented in Alpha 0.26:** visible-region culling for machine vector drawing and hybrid lighting effects, capped draw budgets, quality-aware simplified machinery rendering on Fast/Ultra tiers, and additional animated details for drills, pumps, furnaces and batteries. All remain Phaser Graphics, without new external dependencies or save changes. **Still planned:** true sprite atlases, engineer sprite animation, optional fluid/heat shaders, WebGL/Canvas device compatibility testing and measured Android performance.
 
 ## Stage 5: Worker evaluation (planned)
 
@@ -36,4 +36,4 @@ Profile the full simulation, then test worker-owned physics using transferable s
 5. Fallback mode remains usable on lower-end phones.
 6. Every new physics rule has deterministic test fixtures and a bounded work budget.
 
-**Status (Alpha 0.25):** Stages 1–3 have initial implementations. Stages 4–5 are planned. Stage 3 remains an early physics foundation, with pipe failures and richer stress modelling still outstanding. Android gameplay and FPS require device validation.
+**Status (Alpha 0.26):** Stages 1–3 have initial implementations; Stage 4 has begun with camera-aware rendering and machinery animation. Stage 5 remains planned. Pipe failures, advanced structural supports, sprite atlases and GPU shaders remain unfinished. Android gameplay and FPS require device validation.
