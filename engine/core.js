@@ -1,5 +1,5 @@
 // Alpha 0.20: local deterministic factory intelligence. No network or external AI.
-import {DEMAND} from '../js/factory.js?v=0200';
+import {DEMAND} from '../js/factory.js?v=0233';
 const title=s=>s.charAt(0).toUpperCase()+s.slice(1);
 export function createCore(factory,dynamics,living,intelligence){
  let lastCycle=-1,cached=[],samples=[];
