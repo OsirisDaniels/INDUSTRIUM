@@ -8,14 +8,20 @@ const GRANULAR=new Set([T.SAND,T.ORE,T.WET_SAND,T.GOLD,T.RESIDUE,T.BURNT_RESIDUE
 const LIQUID=new Set([T.WATER,T.OIL,T.ACID,T.LAVA]);
 const GAS=new Set([T.STEAM,T.VAPOUR,T.FIRE]);
 const NEIGHBORS=[-W,W,-1,1];
+// Alpha 0.24.2: conservative 16x16 active-chunk acceleration.
+// Only skip chunks proven to contain no dynamic materials. Rebuild regularly
+// to capture direct writes from older factory/environment modules.
+const CHUNK=16,COLS=Math.ceil(W/CHUNK),ROWS=Math.ceil(H/CHUNK),STATIC_CHUNK=new Set([T.AIR,...STATIC]);
 export class World{
- constructor(){this.grid=new Uint8Array(N);this.age=new Uint8Array(N);this.blocks=new Uint8Array(N);this.tick=0;this.dirty=true;this.seed=0;this.generated=false}
+ constructor(){this.grid=new Uint8Array(N);this.age=new Uint8Array(N);this.blocks=new Uint8Array(N);this.tick=0;this.dirty=true;this.seed=0;this.generated=false;this.chunked=true;this.activeChunks=new Uint8Array(COLS*ROWS);this.chunkEpoch=-1;this.chunkVisits=0;this.chunkSkips=0}
  inside(x,y){return x>=0&&x<W&&y>=0&&y<H}
  at(x,y){return this.inside(x,y)?this.grid[y*W+x]:T.STONE}
- set(x,y,v){if(!this.inside(x,y)||v<0||v>=COLORS.length)return;const i=y*W+x;if(this.blocks[i]&&v!==T.AIR)return;if(this.grid[i]!==v){this.grid[i]=v;this.age[i]=0;this.dirty=true}}
- block(x,y,on=true){if(!this.inside(x,y))return;const i=y*W+x;this.blocks[i]=on?1:0;if(on){this.grid[i]=0;this.age[i]=0}this.dirty=true}
+ set(x,y,v){if(!this.inside(x,y)||v<0||v>=COLORS.length)return;const i=y*W+x;if(this.blocks[i]&&v!==T.AIR)return;if(this.grid[i]!==v){this.grid[i]=v;this.age[i]=0;this.dirty=true;this.wake(x,y)}}
+ block(x,y,on=true){if(!this.inside(x,y))return;const i=y*W+x;this.blocks[i]=on?1:0;if(on){this.grid[i]=0;this.age[i]=0}this.dirty=true;this.wake(x,y)}
  canMove(i){return i>=0&&i<N&&!this.blocks[i]}
- swap(i,j){if(!this.canMove(j))return false;const g=this.grid,a=this.age,t=g[i],old=a[i];g[i]=g[j];a[i]=a[j];g[j]=t;a[j]=old;this.dirty=true;return true}
+ swap(i,j){if(!this.canMove(j))return false;const g=this.grid,a=this.age,t=g[i],old=a[i];g[i]=g[j];a[i]=a[j];g[j]=t;a[j]=old;this.dirty=true;this.wake(i%W,(i/W)|0);this.wake(j%W,(j/W)|0);return true}
+ wake(x,y){if(!this.chunked)return;const cx=x>>4,cy=y>>4;for(let yy=Math.max(0,cy-1);yy<=Math.min(ROWS-1,cy+1);yy++)for(let xx=Math.max(0,cx-1);xx<=Math.min(COLS-1,cx+1);xx++)this.activeChunks[yy*COLS+xx]=1}
+ refreshChunks(){const a=this.activeChunks,g=this.grid;a.fill(0);for(let y=1;y<H-1;y++)for(let x=0;x<W;x++){const i=y*W+x;if(!this.blocks[i]&&!STATIC_CHUNK.has(g[i]))a[(y>>4)*COLS+(x>>4)]=1}this.chunkEpoch=this.tick}
  region(x){return REGIONS[Math.min(3,Math.max(0,Math.floor(x/60)))]}
  generate(seed=Math.floor(Math.random()*2147483646)+1){
  this.seed=seed>>>0;let n=this.seed||1;const rnd=()=>{n^=n<<13;n^=n>>>17;n^=n<<5;return(n>>>0)/4294967296};
@@ -52,13 +58,14 @@ export class World{
  // A handful of ancient research pods sit inside deliberate hidden chambers.
  for(const [cx,cy] of [[41,137],[106,145],[166,143],[215,134]]){for(let dy=-3;dy<=3;dy++)for(let dx=-5;dx<=5;dx++){const x=cx+dx,y=cy+dy;if(!this.inside(x,y))continue;const rim=Math.abs(dx)===5||Math.abs(dy)===3;g[y*W+x]=rim?T.METAL:T.AIR}g[cy*W+cx]=T.ARTIFACT;g[(cy+1)*W+cx-2]=T.CRYSTAL;g[(cy+1)*W+cx+2]=T.GOLD}
  for(let x=0;x<W;x++)g[(H-1)*W+x]=T.BASALT;
- this.dirty=true;this.generated=true
+ this.dirty=true;this.generated=true;this.chunkEpoch=-1
  }
  // Moves one adjacent liquid/gas/solid particle according to its density.
  simulate(){
  this.tick++;const g=this.grid,a=this.age,blocks=this.blocks,flip=this.tick&1;
+ if(this.chunked&&(this.chunkEpoch<0||this.tick-this.chunkEpoch>=12))this.refreshChunks();
  for(let y=H-2;y>=1;y--)for(let z=0;z<W;z++){
- const x=flip?W-z-1:z,i=y*W+x,v=g[i];if(!v||blocks[i]||STATIC.has(v))continue;
+ const x=flip?W-z-1:z,i=y*W+x,v=g[i];if(this.chunked&&!this.activeChunks[(y>>4)*COLS+(x>>4)]){this.chunkSkips++;continue}this.chunkVisits++;if(!v||blocks[i]||STATIC.has(v))continue;
  const below=i+W,side=((x*37+y*19+this.tick)&1)?1:-1;
  let adjacentWater=-1,adjacentHeat=false,adjacentSand=-1,adjacentOil=-1;
  if(v===T.SAND||v===T.WATER||v===T.ICE||v===T.SNOW||v===T.OIL||v===T.LAVA||v===T.ACID||v===T.FIRE||v===T.VAPOUR||v===T.RESIDUE||v===T.FUEL){
@@ -102,5 +109,5 @@ export class World{
  import(arr){if(!arr)return false;const legacy=arr.length===LEGACY_W*LEGACY_H;if(arr.length!==N&&!legacy)return false;
  if(legacy){this.generate();for(let y=0;y<LEGACY_H;y++)for(let x=0;x<LEGACY_W;x++){const v=arr[y*LEGACY_W+x];this.grid[y*W+x]=Number.isInteger(v)&&v>=0&&v<COLORS.length?v:T.AIR}}
  else{this.grid=Uint8Array.from(arr,v=>v>=0&&v<COLORS.length?v:T.AIR);this.age=new Uint8Array(N);this.blocks=new Uint8Array(N)}
- this.age.fill(0);this.blocks.fill(0);this.dirty=true;return true}
+ this.age.fill(0);this.blocks.fill(0);this.dirty=true;this.chunkEpoch=-1;return true}
 }
