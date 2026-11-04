@@ -52,10 +52,12 @@ const logistics=new Set(['belt','hopper','filter','storage','warehouse','collect
 const power=new Set(['generator','solar','wind','waterwheel','battery']);
 const pipes=new Set(['pump','condenser','cooler','mixer','distiller']);
 const hex=s=>Number.parseInt(s.slice(1),16);
-export function drawMachines(g,factory,time=0){
+export function drawMachines(g,factory,time=0,view=null,quality='Balanced'){
  if(!g)return;g.clear();
  const powerState=factory.power(),powered=powerState.production>=powerState.use;
+ const simple=quality==='Fast'||quality==='Ultra';
  for(const m of factory.machines){
+  if(view&&(m.x<view.left-5||m.x>view.right+5||m.y<view.top-5||m.y>view.bottom+5))continue;
   const x=m.x*4,y=m.y*4,kind=m.kind,p=palettes[kind]||['#34434f',MACHINE_COLOURS[kind]||'#8ab5c7','#ecffff'];
   const dark=hex(p[0]),main=hex(p[1]),light=hex(p[2]),phase=time*.004+m.x*.31;
   const active=!m.safetyHold&&!m.autoHold&&((DEMAND[kind]||0)===0||powered),health=m.integrity??100;
@@ -106,6 +108,12 @@ export function drawMachines(g,factory,time=0){
   }
   g.fillStyle(health<35?0xff6b66:active?0x7ef4c7:0xffcf74,1);g.fillCircle(x+9,y-9,2.4);
   if(health<40){g.lineStyle(1.5,0xff7b72,.95);g.strokeRoundedRect(x-14,y-14,28,28,4)}
+  if(!simple&&active){
+   if(mining.has(kind)){const bob=Math.sin(time*.012+m.x)*3;g.lineStyle(1.5,0xffd08c,.75);g.lineBetween(x-6,y+12,x-6+bob,y+15)}
+   if(pipes.has(kind)){const flow=(time/160|0)%12;g.fillStyle(0xa7f4f0,.8);g.fillCircle(x-6+flow,y+4,1.4)}
+   if(thermal.has(kind)){const flicker=Math.sin(time*.01+m.y)*2;g.fillStyle(0xffc075,.45);g.fillCircle(x+5,y-14+flicker,2)}
+   if(kind==='battery'){g.fillStyle(0xafffd2,.65);g.fillRect(x-7,y+11,Math.max(1,14*((Math.sin(time*.001+m.x)+1)/2)),2)}
+  }
  }
 }
 export function drawAtmosphere(g,world,time=0,enabled=true,grid=false,zoom=1,weather=[]){
