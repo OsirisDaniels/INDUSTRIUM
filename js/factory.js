@@ -1,5 +1,5 @@
-import {unlocked,unlockHint} from './catalog.js';
-import {T,W,H,REGIONS} from './world.js';
+import {unlocked,unlockHint} from './catalog.js?v=080-frontiers';
+import {T,W,H,REGIONS} from './world.js?v=080-frontiers';
 export const PRICES={generator:170,drill:130,collector:155,furnace:240,solar:350,belt:12,storage:110,wind:420,crusher:290,warehouse:320,deepdrill:680,refinery:760,pump:210,sifter:190,hopper:90,kiln:330,press:480,filter:160,cooler:260,mixer:260,excavator:390,oilrig:470,distiller:550,combustor:900,crystaldrill:580,condenser:360,waterwheel:440,stabilizer:1100,surveyor:240,battery:460};
 export const DEMAND={generator:0,drill:8,collector:6,furnace:12,solar:0,belt:0,storage:0,wind:0,crusher:10,warehouse:0,deepdrill:18,refinery:24,pump:7,sifter:10,hopper:2,kiln:14,press:18,filter:3,cooler:11,mixer:7,excavator:18,oilrig:12,distiller:18,combustor:0,crystaldrill:16,condenser:10,waterwheel:0,stabilizer:24,surveyor:6,battery:0};
 export const SUPPLY={generator:24,solar:14,wind:32};
