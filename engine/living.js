@@ -3,7 +3,7 @@ import {W,H,T,REGIONS} from '../js/world.js?v=080-frontiers-final';
 const types=['Clear','Rain','Windstorm','Heatwave','Cold snap','Ashfall'];
 const seeded=(n)=>{let x=(n|0)^0x9e3779b9;x=Math.imul(x^(x>>>16),0x21f0aaad);x=Math.imul(x^(x>>>15),0x735a2d97);return((x^(x>>>15))>>>0)/4294967296};
 export class LivingWorld{
- constructor(world,factory,dynamics){this.world=world;this.factory=factory;this.dynamics=dynamics;this.cycle=0;this.weather=types.map(()=>0);this.history=[];this.events=0;this.regions=REGIONS.map(r=>({id:r.id,industry:0,damage:0,visits:0}));this.last='The planet is stable';this.enabled=true}
+ constructor(world,factory,dynamics){this.world=world;this.factory=factory;this.dynamics=dynamics;this.cycle=0;this.weather=REGIONS.map(()=>0);this.history=[];this.events=0;this.regions=REGIONS.map(r=>({id:r.id,industry:0,damage:0,visits:0}));this.last='The planet is stable';this.enabled=true}
  reset(){this.cycle=0;this.weather.fill(0);this.history=[];this.events=0;this.regions=REGIONS.map(r=>({id:r.id,industry:0,damage:0,visits:0}));this.last='The planet is stable'}
  record(message,region='planet'){const entry={cycle:this.cycle,region,message};this.history.unshift(entry);if(this.history.length>36)this.history.length=36;this.last=message;this.events++;if(this.factory.pendingEvents.length<8)this.factory.pendingEvents.push(message)}
  step(){
