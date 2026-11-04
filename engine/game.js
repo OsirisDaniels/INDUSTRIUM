@@ -10,7 +10,7 @@ import {createMigration} from './migration.js?v=0130';
 import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0100';
 import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
-import {Factory,PRICES,DEMAND,COLORS as MACHINE_COLORS} from '../js/factory.js?v=080-frontiers-final';
+import {Factory,PRICES,DEMAND,COLORS as MACHINE_COLORS} from '../js/factory.js?v=0200';
 import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-final';
 
 // Phaser owns the game scene, graphics texture, camera, pointer input and update loop.
@@ -19,7 +19,7 @@ import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-fina
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory),sound=createSound(),perfController=createPerformance();
 const living=new LivingWorld(world,factory,dynamics),intelligence=new Intelligence(world,factory,dynamics,living),core=createCore(factory,dynamics,living,intelligence);
-let coreUI;
+let coreUI,lastCoreRender=0;
 try{perfController.setMode(localStorage.getItem('industrium-performance')||'auto')}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100)}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
@@ -150,7 +150,7 @@ function startPhaser(){
    acc=Math.min(acc+Math.min(delta,100),200);
    const cfg=perfController.config(batterySaver),step=cfg.simStep;let count=0;
    const simStart=performanceNow();while(acc>=step&&count<cfg.steps){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){factory.operate();living.step();intelligence.step();core.refresh();if(factory.pendingEvents.length)notice(factory.pendingEvents.shift())}}}simCost=performanceNow()-simStart;
-   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();coreUI?.render();lastHud=time}drawMiniMap();lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time);
+   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();if(coreUI?.open&&time-lastCoreRender>1900){coreUI.render();lastCoreRender=time}lastHud=time}drawMiniMap();lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time);
    if(time-autoSaveTime>90000){autoSaveTime=time;if('requestIdleCallback' in window)window.requestIdleCallback(()=>saveEngine(true),{timeout:10000});else saveEngine(true)}
    frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';const d=$('perfDetail'),stats=perfController.stats;if(d)d.textContent=perfController.name+' · '+stats.work.toFixed(1)+' ms/frame · Physics '+stats.simulation.toFixed(1)+' ms · Graphics '+stats.graphics.toFixed(1)+' ms';frameCount=0;perfTime=time}
   }
