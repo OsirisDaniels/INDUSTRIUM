@@ -86,3 +86,7 @@ body{background:#060d16}
  .modeRail{bottom:calc(86px + env(safe-area-inset-bottom))}
  .worldNotice{bottom:calc(133px + env(safe-area-inset-bottom))}
 }
+
+/* Alpha 0.17 adaptive performance controls */
+#performanceMode{min-width:130px;max-width:175px;border:1px solid #47746f;background:#132f3b;color:#e9fff5;border-radius:9px;padding:9px 10px;font:inherit}
+#perfDetail{font-size:11px;color:#a9e5d0;max-width:175px;text-align:right;line-height:1.4;font-variant-numeric:tabular-nums}
