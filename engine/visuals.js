@@ -1,6 +1,6 @@
 // INDUSTRIUM Alpha 0.15: deterministic hybrid pixel-terrain and vector-machine art.
 import {W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
-import {COLORS as MACHINE_COLOURS,DEMAND} from '../js/factory.js?v=080-frontiers-final';
+import {COLORS as MACHINE_COLOURS,DEMAND} from '../js/factory.js?v=0230';
 const hash=(x,y,seed=0)=>{let n=Math.imul(x+seed,374761393)+Math.imul(y+seed*3,668265263);n=Math.imul(n^(n>>>13),1274126177);return(n^(n>>>16))>>>0};
 const clamp=v=>Math.max(0,Math.min(255,v|0));
 const water=new Set([T.WATER,T.OIL,T.LAVA,T.ACID]);
@@ -108,7 +108,7 @@ export function drawMachines(g,factory,time=0){
   if(health<40){g.lineStyle(1.5,0xff7b72,.95);g.strokeRoundedRect(x-14,y-14,28,28,4)}
  }
 }
-export function drawAtmosphere(g,world,time=0,enabled=true,grid=false,zoom=1){
+export function drawAtmosphere(g,world,time=0,enabled=true,grid=false,zoom=1,weather=[]){
  if(!g)return;g.clear();
  if(grid&&zoom>=1.8){g.lineStyle(1,0x8abcc4,.14);for(let x=0;x<=W*4;x+=40)g.lineBetween(x,0,x,H*4);for(let y=0;y<=H*4;y+=40)g.lineBetween(0,y,W*4,y)}
  if(!enabled)return;
@@ -116,6 +116,15 @@ export function drawAtmosphere(g,world,time=0,enabled=true,grid=false,zoom=1){
  for(let i=0;i<4;i++){
   const x=i*60*4,y=0,w=60*4,colors=[0x579fc3,0xe2a764,0xe67b59,0xb9d9f0];
   g.fillStyle(colors[i],.045);g.fillRect(x,y,w,78*4);
+ }
+ // Regional weather is drawn with small fixed budgets to keep GPU work bounded.
+ for(let i=0;i<4;i++){
+  const state=weather[i]||0,x0=i*240;
+  if(state===1){g.lineStyle(1,0xa0cfff,.36);for(let k=0;k<17;k++){const x=x0+((k*71+(time*.09|0))%240),y=((k*59+(time*.23|0))%375);g.lineBetween(x,y,x-3,y+11)}}
+  else if(state===2){g.lineStyle(1,0xd8e5de,.28);for(let k=0;k<13;k++){const x=x0+((k*47+(time*.24|0))%240),y=35+((k*73)%305);g.lineBetween(x,y,x+13,y-2)}}
+  else if(state===5){for(let k=0;k<15;k++){const x=x0+((k*41+(time*.035|0))%240),y=(k*53+(time*.09|0))%350;g.fillStyle(0x9caaa6,.27);g.fillCircle(x,y,1.4+(k%2))}}
+  else if(state===4){for(let k=0;k<10;k++){const x=x0+((k*31+(time*.03|0))%240),y=(k*71+(time*.065|0))%350;g.fillStyle(0xd1efff,.45);g.fillCircle(x,y,1.1)}}
+  else if(state===3){g.fillStyle(0xef8153,.025);g.fillRect(x0,0,240,370)}
  }
  // Low-cost atmospheric particles from visible world activity.
  const sparks=world.tick%3;
