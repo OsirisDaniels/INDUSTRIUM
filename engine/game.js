@@ -1,5 +1,5 @@
 import {createStructures} from './structures.js?v=0250';
-import {createHybrid} from './hybrid.js?v=0240';
+import {createHybrid} from './hybrid.js?v=0260';
 import {Autonomy} from './autonomy.js?v=0233';
 import {createPlayer} from './player.js?v=0232';
 import {LivingWorld} from './living.js?v=0231';
@@ -8,7 +8,7 @@ import {createCore} from './core.js?v=0233';
 import {createCoreUI} from './core-ui.js?v=0230';
 import {createPerformance} from './performance.js?v=0170';
 import {createSound} from './sound.js?v=0231';
-import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0233';
+import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0260';
 import {createGameShell} from './shell.js?v=0233';
 import {createMigration} from './migration.js?v=0250';
 import {Dynamics} from './dynamics.js?v=0120';
@@ -121,8 +121,8 @@ function drawMiniMap(force=false){
  const camera=scene.cameras.main,left=Math.max(0,camera.scrollX/SCALE),top=Math.max(0,camera.scrollY/SCALE),ww=Math.min(W,camera.width/camera.zoom/SCALE),hh=Math.min(H,camera.height/camera.zoom/SCALE);
  ctx.strokeStyle='#8ef4cf';ctx.lineWidth=1.4;ctx.strokeRect(left+.5,top+.5,ww,hh);
 }
-function renderMachines(time=0){drawMachines(buildGraphics,factory,time)}
-function renderEffects(time){drawAtmosphere(fxGraphics,world,time,showEffects,showGrid,scene?.cameras.main.zoom||1,factory.weather?living.weather:[]);if(hybridGraphics){if(showEffects&&hybrid.enabled)hybrid.draw(hybridGraphics,time,hybrid.detail==='auto'?perfController.name:hybrid.detail,factory.weather?living.weather:[]);else hybridGraphics.clear()}if(structureGraphics){if(showEffects&&structures.enabled)structures.draw(structureGraphics,scene?.cameras.main,hybrid.detail);else structureGraphics.clear()}if(ambienceGraphics)ambienceGraphics.clear()}
+function renderMachines(time=0){const cam=scene?.cameras.main,view=cam?{left:cam.scrollX/SCALE,top:cam.scrollY/SCALE,right:(cam.scrollX+cam.width/cam.zoom)/SCALE,bottom:(cam.scrollY+cam.height/cam.zoom)/SCALE}:null;drawMachines(buildGraphics,factory,time,view,perfController.name)}
+function renderEffects(time){drawAtmosphere(fxGraphics,world,time,showEffects,showGrid,scene?.cameras.main.zoom||1,factory.weather?living.weather:[]);if(hybridGraphics){if(showEffects&&hybrid.enabled)hybrid.draw(hybridGraphics,time,hybrid.detail==='auto'?perfController.name:hybrid.detail,factory.weather?living.weather:[],scene?.cameras.main);else hybridGraphics.clear()}if(structureGraphics){if(showEffects&&structures.enabled)structures.draw(structureGraphics,scene?.cameras.main,hybrid.detail);else structureGraphics.clear()}if(ambienceGraphics)ambienceGraphics.clear()}
 function worldPoint(pointer){const p=scene.cameras.main.getWorldPoint(pointer.x,pointer.y);return{x:Math.floor(p.x/SCALE),y:Math.floor(p.y/SCALE)}}
 function interact(pointer,first){
  const p=worldPoint(pointer);hoverCell=p;if(!valid(p.x,p.y))return;
