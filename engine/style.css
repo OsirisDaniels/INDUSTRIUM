@@ -147,3 +147,6 @@ body{background:#060d16}
  .modeRail button{min-width:56px;font-size:10px;padding:9px 8px}
 }
 @media(max-height:650px){.playerHud{top:calc(166px + env(safe-area-inset-top))}.touchControls{bottom:calc(146px + env(safe-area-inset-bottom))}.joyPad{width:79px;height:79px}.jumpBtn{width:59px;height:59px}}
+
+/* Alpha 0.23.3 player appearance selector */
+#playerStyle{max-width:150px;min-width:115px;background:#12333b;color:#e8fff5;border:1px solid #55867b;border-radius:9px;padding:9px 10px;font:inherit}
