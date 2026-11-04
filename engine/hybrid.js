@@ -50,14 +50,17 @@ export function createHybrid(world,factory,dynamics){
   // Visual activity is ephemeral and intentionally not part of the save.
   for(let k=0;k<80;k++){const i=(frame*307+k*479)%(W*H);if(activity[i])activity[i]--}
  }
- function draw(g,time,quality='balanced',weather=[]){
+ function draw(g,time,quality='balanced',weather=[],camera=null){
   if(!g)return;g.clear();if(!enabled)return;
   const fast=quality==='Fast'||quality==='Ultra'||quality==='fast'||quality==='ultra'||detail==='low';
   const t=time*.001;
+  const view=camera?{left:camera.scrollX-40,top:camera.scrollY-40,right:camera.scrollX+camera.width/camera.zoom+40,bottom:camera.scrollY+camera.height/camera.zoom+40}:null;
+  const visible=(x,y,pad=0)=>!view||(x+pad>=view.left&&x-pad<=view.right&&y+pad>=view.top&&y-pad<=view.bottom);
   // Distinct light zones: ambient shafts, machine light, reflections and heat shimmer.
   const shafts=fast?3:7;
   for(let k=0;k<shafts;k++){
    const x=35+k*(W*4/shafts)+Math.sin(t*.12+k)*11;
+   if(!visible(x,160,90))continue;
    g.fillStyle(0x86c6df,fast?.012:.021);
    g.fillTriangle(x-21,0,x+20,0,x+49,390);
   }
@@ -65,7 +68,7 @@ export function createHybrid(world,factory,dynamics){
   const machines=factory.machines,cap=fast?16:40,stride=Math.max(1,Math.ceil(machines.length/cap));
   for(let i=0;i<machines.length;i+=stride){
    const m=machines[i];if(m.autoHold||m.safetyHold)continue;
-   const x=m.x*4,y=m.y*4,hot=['furnace','kiln','combustor','refinery','distiller'].includes(m.kind);
+   const x=m.x*4,y=m.y*4;if(!visible(x,y,24))continue;const hot=['furnace','kiln','combustor','refinery','distiller'].includes(m.kind);
    const active=['generator','battery','solar','wind','waterwheel'].includes(m.kind)||hot;
    if(!active)continue;
    const c=hot?0xff9a56:0x81e7cc,pulse=1+Math.sin(t*2+m.x)*.12;
@@ -76,11 +79,11 @@ export function createHybrid(world,factory,dynamics){
   const particles=fast?12:32;
   for(let k=0;k<particles;k++){
    const x=4+((k*89+(time*.023|0))%(W*4-8)),y=120+((k*61+(time*.047|0))%430),cell=clamp(Math.floor(x/4),0,W-1)+clamp(Math.floor(y/4),0,H-1)*W;
-   if(activity[cell]){g.fillStyle(0xa9e5e9,.18+activity[cell]/65);g.fillCircle(x,y,1.4)}
+   if(activity[cell]&&visible(x,y,3)){g.fillStyle(0xa9e5e9,.18+activity[cell]/65);g.fillCircle(x,y,1.4)}
   }
   // Weather lighting: subtle region tint only. The underlying terrain remains legible.
   for(let r=0;r<4;r++){
-   const w=weather[r]||0;if(w===3){g.fillStyle(0xff9859,.025);g.fillRect(r*240,0,240,450)}
+   const w=weather[r]||0;if(!visible(r*240+120,200,140))continue;if(w===3){g.fillStyle(0xff9859,.025);g.fillRect(r*240,0,240,450)}
    else if(w===4){g.fillStyle(0x93c6f4,.024);g.fillRect(r*240,0,240,450)}
    else if(w===5){g.fillStyle(0xb7a68e,.025);g.fillRect(r*240,0,240,450)}
   }
