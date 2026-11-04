@@ -21,7 +21,7 @@ import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-fina
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory),sound=createSound(),perfController=createPerformance();
 const living=new LivingWorld(world,factory,dynamics),intelligence=new Intelligence(world,factory,dynamics,living),autonomy=new Autonomy(factory,intelligence),player=createPlayer(world),core=createCore(factory,dynamics,living,intelligence);
-let coreUI,lastCoreRender=0,playerGraphics,lastPlayerDraw=0,lastFootstep=0,joyAxis=0,pressStart=null,touchGesture=false;
+let coreUI,lastCoreRender=0,playerGraphics,lastPlayerDraw=0,lastFootstep=0,joyAxis=0,joyPointer=null,joyJumpLatched=false,pressStart=null,touchGesture=false;
 try{perfController.setMode(localStorage.getItem('industrium-performance')||'auto')}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100);sound.setAmbience(localStorage.getItem('industrium-ambience')!=='off')}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
@@ -75,6 +75,12 @@ function makeTools(){
  $('undoTool').onclick=()=>{mode='pan';hoverCell=null;previewGraphics?.clear();refreshButtons();notice('Camera control selected')};
  $('followPlayer').onclick=()=>{player.follow=!player.follow;refreshButtons();sound.play('select');notice(player.follow?'Camera follows engineer':'Free camera enabled')};
  $('jumpBtn').onpointerdown=e=>{e.preventDefault();player.jump();sound.play('jump')};
+ const pad=$('joyPad'),knob=$('joyKnob');
+ const moveJoy=e=>{const r=pad.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),radius=r.width*.38;joyAxis=Math.max(-1,Math.min(1,dx/radius));knob.style.transform='translate('+Math.round(Math.max(-radius,Math.min(radius,dx)))+'px,'+Math.round(Math.max(-radius,Math.min(radius,dy)))+'px)';if(dy<-radius*.6&&!joyJumpLatched){joyJumpLatched=true;player.jump();sound.play('jump')}if(dy>-radius*.25)joyJumpLatched=false};
+ pad.addEventListener('pointerdown',e=>{e.preventDefault();joyPointer=e.pointerId;pad.setPointerCapture(e.pointerId);moveJoy(e)});
+ pad.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();moveJoy(e)}});
+ const releaseJoy=e=>{if(e.pointerId===joyPointer){joyPointer=null;joyAxis=0;joyJumpLatched=false;knob.style.transform='translate(0,0)'}};
+ pad.addEventListener('pointerup',releaseJoy);pad.addEventListener('pointercancel',releaseJoy);
  $('mapToggle').onclick=()=>{miniOpen=!miniOpen;$('miniMapPanel').hidden=!miniOpen;if(miniOpen)drawMiniMap(true)};
  $('miniMapClose').onclick=()=>{miniOpen=false;$('miniMapPanel').hidden=true};
  $('miniMap').onclick=e=>{if(!scene)return;const r=e.currentTarget.getBoundingClientRect(),x=Math.max(0,Math.min(W-1,Math.floor((e.clientX-r.left)/r.width*W))),y=Math.max(0,Math.min(H-1,Math.floor((e.clientY-r.top)/r.height*H)));travel(x,y);notice('Camera moved to '+world.region(x).title)};
@@ -211,6 +217,6 @@ makeTools();if(!loadEngine()){world.generate();player.spawn()}refreshButtons();
 operations=createOperations(factory,{notice,save:()=>saveEngine(true),status});
 coreUI=createCoreUI({core,living,intelligence,autonomy,factory,notice,save:()=>saveEngine(true),sound});
 migration=createMigration({world,factory,dynamics,save:()=>saveEngine(true),refresh:()=>{renderTerrain();renderMachines();status();operations?.render();shell?.refreshCatalog();shell?.updateMenu();living.reset();intelligence.reset();core.refresh();coreUI?.render()},notice,travel:i=>travel(i*60+30,90)});
-shell=createGameShell({world,factory,dynamics,operations,migration,notice,onTravel:travel,onNewWorld:newWorld,onPause:p=>{paused=!!p;acc=0;refreshButtons()},onSave:saveEngine,onBrush:n=>{brush=n}});
+shell=createGameShell({world,factory,dynamics,operations,migration,notice,onTravel:travel,onNewWorld:newWorld,onPause:p=>{paused=!!p;acc=0;refreshButtons()},onSave:saveEngine,onBrush:n=>{brush=n},onCreativeChange:creative=>{if(!creative){material=-1;if(mode==='paint')notice('Career Mode: excavation only')}refreshButtons()}});
 shell.setMenu(true);startPhaser();
 window.addEventListener('pagehide',()=>{if(scene)saveEngine(true)});
