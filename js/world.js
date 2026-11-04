@@ -29,7 +29,7 @@ export class World{
  if(y>1&&g[i-W]===T.AIR&&Math.random()<.85)this.swap(i,i-W);else if(x+side>=0&&x+side<W&&g[i+side]===T.AIR&&Math.random()<.35)this.swap(i,i+side);continue
  }
  if(v===T.SAND||v===T.ORE||v===T.WET_SAND){
- if(v===T.SAND){for(const d of [W,side,-side]){if(d===side&&x+side>=W||d===-side&&x-side<0)continue;const j=i+d;if(j>=0&&j<N&&g[j]===T.WATER){g[i]=T.WET_SAND;g[j]=T.AIR;a[i]=0;this.dirty=true;break}}}
+ if(v===T.SAND){for(const d of [W,side,-side]){if(d!==W&&(x+d<0||x+d>=W))continue;const j=i+d;if(j>=0&&j<N&&g[j]===T.WATER){g[i]=T.WET_SAND;g[j]=T.AIR;a[i]=0;this.dirty=true;break}}}
  const grain=g[i];if(g[below]===T.AIR||g[below]===T.WATER){this.swap(i,below);continue}
  // Wet sand is heavier and more cohesive; it slides less readily.
  if(grain===T.WET_SAND&&Math.random()<.7)continue;
