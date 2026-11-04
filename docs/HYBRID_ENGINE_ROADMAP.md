@@ -23,6 +23,10 @@ Implemented optional bounded structural sampling with exposed-roof stress, limit
 
 **Implemented in Alpha 0.26:** visible-region culling for machine vector drawing and hybrid lighting effects, capped draw budgets, quality-aware simplified machinery rendering on Fast/Ultra tiers, and additional animated details for drills, pumps, furnaces and batteries. All remain Phaser Graphics, without new external dependencies or save changes. **Still planned:** true sprite atlases, engineer sprite animation, optional fluid/heat shaders, WebGL/Canvas device compatibility testing and measured Android performance.
 
+## Stage 4.1: Animated world and machinery (Alpha 0.27 initial implementation)
+
+**Implemented:** runtime-generated sprite atlas with four animation frames across five machine families, camera-limited sprite creation and cleanup, adaptive frame cadence, and an in-game switch between sprites and classic vector machinery. No additional asset downloads, no save-schema changes. **Still planned:** authored industrial sprite sheets, engineer walk/jump animation atlas, fluid refraction and heat shaders, better ambient environmental lighting and measured Android FPS. These additions should be tested on actual devices before the next stage.
+
 ## Stage 5: Worker evaluation (planned)
 
 Profile the full simulation, then test worker-owned physics using transferable snapshots and a command queue. Keep factory, player, machine placement, saves and world physics synchronized. Only ship worker mode if it produces a measured improvement on actual mobile devices.
@@ -36,4 +40,4 @@ Profile the full simulation, then test worker-owned physics using transferable s
 5. Fallback mode remains usable on lower-end phones.
 6. Every new physics rule has deterministic test fixtures and a bounded work budget.
 
-**Status (Alpha 0.26):** Stages 1–3 have initial implementations; Stage 4 has begun with camera-aware rendering and machinery animation. Stage 5 remains planned. Pipe failures, advanced structural supports, sprite atlases and GPU shaders remain unfinished. Android gameplay and FPS require device validation.
+**Status (Alpha 0.27):** Stages 1–3 have initial implementations; Stage 4 includes camera-aware rendering and the first runtime machine sprite atlas. Stage 5 remains planned. Pipe failures, advanced structural supports, authored sprite assets and GPU shaders remain unfinished. Android gameplay and FPS require device validation.
