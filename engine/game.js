@@ -13,7 +13,7 @@ import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-fina
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory);
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics;let shell,migration,operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
+let hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0;let shell,migration,operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
 const notice=s=>{$('notice').textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
 const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
@@ -27,6 +27,9 @@ function status(){
  $('machines').textContent=factory.machines.length+' machines';
  $('heat').textContent='Heat '+dynamics.heatPeak;
  $('pollution').textContent='Pollution '+dynamics.pollutionPeak;
+ $('worldBiome').textContent=region.title.toUpperCase();$('worldCoords').textContent=x+', '+(c?Math.max(0,Math.min(H-1,Math.floor(c.midPoint.y/SCALE))):0)+' · '+factory.machines.length+' active installations';
+ $('worldMode').textContent=mode==='build'?'CONSTRUCTION':mode==='paint'?'TERRAIN EDITOR':mode==='inspect'?'MACHINE INSPECTOR':'CAMERA CONTROL';
+ $('worldTime').textContent='CYCLE '+Math.max(1,Math.floor(world.tick/900)+1);
 }
 function refreshButtons(){
  for(const b of document.querySelectorAll('[data-material]'))b.classList.toggle('active',mode==='paint'&&material===Number(b.dataset.material));
@@ -47,6 +50,10 @@ function makeTools(){
  $('batterySaver').onclick=()=>{batterySaver=!batterySaver;$('batterySaver').classList.toggle('active',batterySaver);$('batterySaver').textContent='Saver '+(batterySaver?'On':'Off');notice('Battery saver '+(batterySaver?'enabled: reduced render and simulation frequency':'disabled'))};
  $('environment').onclick=()=>{dynamics.active=!dynamics.active;$('environment').textContent='Dynamics '+(dynamics.active?'On':'Off');$('environment').classList.toggle('active',dynamics.active);notice('Environmental simulation '+(dynamics.active?'enabled':'paused'))};
  $('home').onclick=()=>{if(!scene)return;scene.cameras.main.centerOn(480,350);clampCamera();status()};
+ $('undoTool').onclick=()=>{mode='pan';hoverCell=null;previewGraphics?.clear();refreshButtons();notice('Camera control selected')};
+ $('mapToggle').onclick=()=>{miniOpen=!miniOpen;$('miniMapPanel').hidden=!miniOpen;if(miniOpen)drawMiniMap(true)};
+ $('miniMapClose').onclick=()=>{miniOpen=false;$('miniMapPanel').hidden=true};
+ $('miniMap').onclick=e=>{if(!scene)return;const r=e.currentTarget.getBoundingClientRect(),x=Math.max(0,Math.min(W-1,Math.floor((e.clientX-r.left)/r.width*W))),y=Math.max(0,Math.min(H-1,Math.floor((e.clientY-r.top)/r.height*H)));travel(x,y);notice('Camera moved to '+world.region(x).title)};
  $('zoomIn').onclick=()=>setZoom(1.25);
  $('zoomOut').onclick=()=>setZoom(.8);
  $('save').onclick=()=>saveEngine();
@@ -61,6 +68,14 @@ function newWorld(seed){const creative=factory.creative,weather=factory.weather;
 function travel(x,y){if(!scene)return;scene.cameras.main.centerOn(x*SCALE,y*SCALE);clampCamera();status()}
 function loadEngine(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||!world.import(s.grid))return false;world.seed=s.seed||0;factory.load(s.factory||{});dynamics.restore(s.environment);return true}catch(e){return false}}
 function renderTerrain(time=worldTime){paintTerrain(texture,world,time,!batterySaver)}
+function drawMiniMap(force=false){
+ if(!miniOpen||!scene||!texture||(!force&&worldTime-lastMini<800))return;lastMini=worldTime;
+ const el=$('miniMap'),ctx=el.getContext('2d',{alpha:false});if(!ctx)return;
+ ctx.clearRect(0,0,W,H);ctx.drawImage(texture.getSourceImage(),0,0,W,H);
+ ctx.fillStyle='#f2fff6';for(const m of factory.machines)ctx.fillRect(m.x-1,m.y-1,3,3);
+ const camera=scene.cameras.main,left=Math.max(0,camera.scrollX/SCALE),top=Math.max(0,camera.scrollY/SCALE),ww=Math.min(W,camera.width/camera.zoom/SCALE),hh=Math.min(H,camera.height/camera.zoom/SCALE);
+ ctx.strokeStyle='#8ef4cf';ctx.lineWidth=1.4;ctx.strokeRect(left+.5,top+.5,ww,hh);
+}
 function renderMachines(time=0){drawMachines(buildGraphics,factory,time)}
 function renderEffects(time){drawAtmosphere(fxGraphics,world,time,showEffects,showGrid,scene?.cameras.main.zoom||1);if(ambienceGraphics)ambienceGraphics.clear()}
 function worldPoint(pointer){const p=scene.cameras.main.getWorldPoint(pointer.x,pointer.y);return{x:Math.floor(p.x/SCALE),y:Math.floor(p.y/SCALE)}}
@@ -87,10 +102,10 @@ function startPhaser(){
    fxGraphics=this.add.graphics().setDepth(6);
    this.cameras.main.setBounds(0,0,WIDTH,HEIGHT).setZoom(targetZoom).centerOn(240,350);
    this.scale.on('resize',()=>{clampCamera();status()});
-   let pinch=0;
-   this.input.on('pointerdown',p=>{if(this.input.pointer1.isDown&&this.input.pointer2.isDown){drag=false;lastPointer=null;return}drag=true;lastPointer=null;interact(p,true)});
-   this.input.on('pointermove',p=>{const a=this.input.pointer1,b=this.input.pointer2;if(a.isDown&&b.isDown){const d=Phaser.Math.Distance.Between(a.x,a.y,b.x,b.y);if(pinch>0&&d>4)setZoom(Math.max(.85,Math.min(1.15,d/pinch)));pinch=d;drag=false;hoverCell=null;return}pinch=0;hoverCell=worldPoint(p);if(drag&&p.isDown)interact(p,false)});
-   this.input.on('pointerup',()=>{drag=false;pinch=0;lastPointer=null});
+   let pinch=0,pinchCenter=null;
+   this.input.on('pointerdown',p=>{if(this.input.pointer1.isDown&&this.input.pointer2.isDown){drag=false;lastPointer=null;pinchCenter=null;return}drag=true;lastPointer=null;interact(p,true)});
+   this.input.on('pointermove',p=>{const a=this.input.pointer1,b=this.input.pointer2;if(a.isDown&&b.isDown){const d=Phaser.Math.Distance.Between(a.x,a.y,b.x,b.y),center={x:(a.x+b.x)/2,y:(a.y+b.y)/2};if(pinch>0&&d>4)setZoom(Math.max(.85,Math.min(1.15,d/pinch)));if(pinchCenter){const cam=this.cameras.main;cam.scrollX-=(center.x-pinchCenter.x)/cam.zoom;cam.scrollY-=(center.y-pinchCenter.y)/cam.zoom;clampCamera()}pinch=d;pinchCenter=center;drag=false;hoverCell=null;return}pinch=0;pinchCenter=null;hoverCell=worldPoint(p);if(drag&&p.isDown)interact(p,false)});
+   this.input.on('pointerup',()=>{drag=false;pinch=0;pinchCenter=null;lastPointer=null});
    this.input.on('gameout',()=>{drag=false;lastPointer=null;hoverCell=null});
    this.input.on('wheel',(pointer,objects,dx,dy)=>{setZoom(dy>0?.9:1.1)});
 
@@ -104,13 +119,13 @@ function startPhaser(){
    worldTime=time;
    const camera=this.cameras.main;
    if(Math.abs(camera.zoom-targetZoom)>.003){camera.setZoom(Phaser.Math.Linear(camera.zoom,targetZoom,Math.min(1,delta*.012)));clampCamera()}
-   if(hoverCell&&mode!=='pan'){previewReason=drawPlacement(previewGraphics,{mode,cell:hoverCell,brush,material,building,factory,world})}
-   else previewGraphics?.clear();
+   if(hoverCell&&mode!=='pan'){previewReason=drawPlacement(previewGraphics,{mode,cell:hoverCell,brush,material,building,factory,world});const label=$('previewHint');label.hidden=false;label.textContent=mode==='build'?(previewReason?'BLOCKED · '+previewReason:'READY · '+(CATALOG[building]?.title||building)+' · $'+PRICES[building]):mode==='inspect'?'INSPECT · Tap a machine':'DRAW · '+(materialNames.find(m=>m[1]===material)?.[0]||'Terrain')+' · Brush '+brush}
+   else{previewGraphics?.clear();$('previewHint').hidden=true}
    if(paused)return;
    acc=Math.min(acc+Math.min(delta,100),200);
    const step=batterySaver?50:33.333;let count=0;
    while(acc>=step&&count<3){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){factory.operate();if(factory.pendingEvents.length)notice(factory.pendingEvents.shift())}}}
-   if(time-lastFrame>(batterySaver?110:65)){if(world.dirty||time-lastFrame>450)renderTerrain(time);renderMachines(time);renderEffects(time);status();lastFrame=time}
+   if(time-lastFrame>(batterySaver?110:65)){if(world.dirty||time-lastFrame>450)renderTerrain(time);renderMachines(time);renderEffects(time);if(time-lastHud>250){status();lastHud=time}drawMiniMap();lastFrame=time}
    if(time-autoSaveTime>90000){autoSaveTime=time;saveEngine(true)}
    frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';frameCount=0;perfTime=time}
   }
