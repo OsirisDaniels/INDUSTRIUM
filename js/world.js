@@ -37,6 +37,8 @@ export class World{
  continue
  }
  if(v===T.WATER){
+ for(const d of [-1,1,-W,W]){if((d===-1&&x===0)||(d===1&&x===W-1))continue;const j=i+d;if(j>=0&&j<N&&g[j]===T.SAND){g[j]=T.WET_SAND;g[i]=T.AIR;a[j]=0;this.dirty=true;break}}
+ if(g[i]!==T.WATER)continue;
  if(g[below]===T.AIR){this.swap(i,below);continue}
  if(g[below]===T.SAND){g[below]=T.WET_SAND;g[i]=T.AIR;a[below]=0;this.dirty=true;continue}
  let moved=false;for(const d of [side,-side])if(x+d>=0&&x+d<W&&g[below+d]===T.AIR){this.swap(i,below+d);moved=true;break}
