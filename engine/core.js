@@ -2,7 +2,13 @@
 import {DEMAND} from '../js/factory.js?v=0200';
 const title=s=>s.charAt(0).toUpperCase()+s.slice(1);
 export function createCore(factory,dynamics,living,intelligence){
- let lastCycle=-1,cached=[];
+ let lastCycle=-1,cached=[],samples=[];
+ const powerKinds=new Set(['generator','solar','wind','waterwheel','combustor','battery']);
+ const mineKinds=new Set(['drill','deepdrill','oilrig','crystaldrill','collector','excavator']);
+ const routes=new Set(['belt','filter','hopper','storage','warehouse','pump']);
+ function observe(){if(samples.length&&factory.cycle-samples.at(-1).cycle<20)return;const p=factory.power();samples.push({cycle:factory.cycle,mined:factory.mined,refined:factory.refined,automated:factory.automated,credits:factory.credits,power:p.production,use:p.use});if(samples.length>12)samples.shift()}
+ function estimate(key){if(samples.length<2)return 0;const a=samples[0],b=samples.at(-1),period=Math.max(1,b.cycle-a.cycle);return Math.max(0,Math.round((b[key]-a[key])/period*100))}
+ function reset(){lastCycle=-1;cached=[];samples=[]}
  function analyse(){
   if(factory.cycle===lastCycle)return cached;lastCycle=factory.cycle;
   const machines=factory.machines,p=factory.power(),issues=[];
@@ -24,6 +30,12 @@ export function createCore(factory,dynamics,living,intelligence){
   issues.sort((a,b)=>b.priority-a.priority);
   cached=issues.slice(0,14);return cached;
  }
- function snapshot(){const p=factory.power(),all=factory.machines,working=all.filter(m=>!/needs|blocked|insufficient|shutdown|waiting/i.test(m.lastAction||'')).length;return{machines:all.length,working,power:p.production,powerUse:p.use,credits:factory.credits,issues:analyse(),weather:living.summary(),alerts:intelligence.alerts.slice(0,6),history:living.history.slice(0,8)}}
- return{analyse,snapshot,refresh(){lastCycle=-1}};
+ function snapshot(){const p=factory.power(),all=factory.machines,working=all.filter(m=>!m.autoHold&&!m.safetyHold&&!/needs|blocked|insufficient|shutdown|waiting/i.test(m.lastAction||'')).length;
+ const groups=[{name:'Power & utilities',count:0},{name:'Extraction',count:0},{name:'Processing',count:0},{name:'Logistics',count:0},{name:'Support',count:0}];
+ for(const m of all){const i=powerKinds.has(m.kind)?0:mineKinds.has(m.kind)?1:routes.has(m.kind)?3:['surveyor','stabilizer','cooler'].includes(m.kind)?4:2;groups[i].count++}
+ const efficiency=all.length?Math.round(working/all.length*100):0;
+ const powerHeadroom=Math.max(0,p.production-p.use);
+ const forecast={ore:estimate('mined'),metal:estimate('refined'),transport:estimate('automated')};
+ return{machines:all.length,working,efficiency,powerHeadroom,groups,forecast,power:p.production,powerUse:p.use,credits:factory.credits,issues:analyse(),weather:living.summary(),alerts:intelligence.alerts.slice(0,6),history:living.history.slice(0,8)}}
+ return{analyse,snapshot,observe,reset,refresh(){lastCycle=-1}};
 }
