@@ -1,4 +1,4 @@
-import {LivingWorld} from './living.js?v=0200';
+import {LivingWorld} from './living.js?v=0201';
 import {Intelligence} from './intelligence.js?v=0200';
 import {createCore} from './core.js?v=0200';
 import {createCoreUI} from './core-ui.js?v=0200';
@@ -38,7 +38,7 @@ function status(){
  $('machines').textContent=factory.machines.length+' machines';
  $('heat').textContent='Heat '+dynamics.heatPeak;
  $('pollution').textContent='Pollution '+dynamics.pollutionPeak;
- $('worldBiome').textContent=region.title.toUpperCase();$('worldCoords').textContent=x+', '+(c?Math.max(0,Math.min(H-1,Math.floor(c.midPoint.y/SCALE))):0)+' · '+factory.machines.length+' active installations';
+ $('worldBiome').textContent=region.title.toUpperCase()+' · '+living.getWeather(x).toUpperCase();$('worldCoords').textContent=x+', '+(c?Math.max(0,Math.min(H-1,Math.floor(c.midPoint.y/SCALE))):0)+' · '+factory.machines.length+' active installations';
  $('worldMode').textContent=mode==='build'?'CONSTRUCTION':mode==='paint'?'TERRAIN EDITOR':mode==='inspect'?'MACHINE INSPECTOR':'CAMERA CONTROL';
  $('worldTime').textContent='CYCLE '+Math.max(1,Math.floor(world.tick/900)+1);
 }
