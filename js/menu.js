@@ -43,8 +43,9 @@ export function createGameMenu({world,factory,save,refresh,note,onPause,onResume
  }
  function drawAtlas(){const canvas=$('#atlasCanvas');if(!canvas)return;const ctx=canvas.getContext('2d',{alpha:false}),img=ctx.createImageData(W,H),data=img.data;for(let i=0;i<W*H;i++){const color=COLORS[world.grid[i]]||COLORS[0],j=i*4;data[j]=color[0];data[j+1]=color[1];data[j+2]=color[2];data[j+3]=255}ctx.putImageData(img,0,0);ctx.strokeStyle='#ffffff25';for(const x of [60,120,180]){ctx.beginPath();ctx.moveTo(x+.5,0);ctx.lineTo(x+.5,H);ctx.stroke()}ctx.fillStyle='#f3fff0';for(const m of factory.machines)ctx.fillRect(m.x-1,m.y-1,3,3);ctx.fillStyle='#ffbe64';for(const s of factory.surveys)ctx.fillRect(s.x-1,s.y-1,3,3)}
  nav.addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(b)setPage(b.dataset.page)});
- panel.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action;
+ panel.addEventListener('click',e=>{if(e.target&&e.target.id==='atlasCanvas'){const rect=e.target.getBoundingClientRect(),x=Math.floor((e.clientX-rect.left)/rect.width*W),y=Math.floor((e.clientY-rect.top)/rect.height*H);onTravel(x,y);hide();return}const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action;
  if(a==='resume')hide();else if(a==='new')newWorld();else if(['saves','guide','play','settings','progress','atlas','research','market','newworld'].includes(a))setPage(a);
+ else if(a.startsWith('travel-')){const region=REGIONS[Number(a.slice(7))];if(region){onTravel(Math.floor((region.range[0]+region.range[1])/2),96);hide()}}
  else if(a==='reroll'){$('#worldSeed').value=Math.floor(Math.random()*2147483645)+1}
  else if(a==='create-world'){const n=Number($('#worldSeed').value);if(!Number.isInteger(n)||n<1||n>2147483646)return note('Enter a valid seed from 1 to 2147483646');if(settings.confirmNew&&!confirm('Create a new planet? This replaces the current autosave. Save a slot first if needed.'))return;onNewWorld(n);hide()}
  else if(a.startsWith('save-'))saveSlot(Number(a.slice(5)));
