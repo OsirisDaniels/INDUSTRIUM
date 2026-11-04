@@ -12,7 +12,7 @@ import {createGameShell} from './shell.js?v=0233';
 import {createMigration} from './migration.js?v=0230';
 import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0100';
-import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
+import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=0242';
 import {Factory,PRICES,DEMAND,COLORS as MACHINE_COLORS} from '../js/factory.js?v=0233';
 import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-final';
 
@@ -24,6 +24,7 @@ const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,f
 const living=new LivingWorld(world,factory,dynamics),intelligence=new Intelligence(world,factory,dynamics,living),autonomy=new Autonomy(factory,intelligence),player=createPlayer(world),core=createCore(factory,dynamics,living,intelligence),hybrid=createHybrid(world,factory,dynamics);
 let coreUI,lastCoreRender=0,playerGraphics,lastPlayerDraw=0,lastFootstep=0,lastHazardSound=0,joyAxis=0,joyPointer=null,joyJumpLatched=false,pressStart=null,touchGesture=false;
 try{perfController.setMode(localStorage.getItem('industrium-performance')||'auto')}catch(e){}
+try{world.chunked=localStorage.getItem('industrium-chunks')!=='off'}catch(e){}
 try{hybrid.enabled=localStorage.getItem('industrium-hybrid')!=='off';hybrid.detail=localStorage.getItem('industrium-hybrid-detail')||'auto'}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100);sound.setAmbience(localStorage.getItem('industrium-ambience')!=='off')}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
@@ -72,6 +73,8 @@ function makeTools(){
  $('soundVolume').oninput=e=>{sound.setVolume(Number(e.target.value)/100);try{localStorage.setItem('industrium-volume',e.target.value)}catch(e){}};
  $('performanceMode').value=perfController.mode;
  $('performanceMode').onchange=e=>{perfController.setMode(e.target.value);try{localStorage.setItem('industrium-performance',perfController.mode)}catch(err){}notice('Performance profile: '+perfController.mode)};
+ $('chunkToggle').textContent=world.chunked?'Chunks On':'Chunks Off';$('chunkToggle').classList.toggle('active',world.chunked);
+ $('chunkToggle').onclick=()=>{world.chunked=!world.chunked;world.chunkEpoch=-1;$('chunkToggle').textContent=world.chunked?'Chunks On':'Chunks Off';$('chunkToggle').classList.toggle('active',world.chunked);try{localStorage.setItem('industrium-chunks',world.chunked?'on':'off')}catch(e){}notice('Chunk acceleration '+(world.chunked?'enabled':'disabled'))};
  $('hybridToggle').textContent=hybrid.enabled?'Hybrid On':'Hybrid Off';$('hybridToggle').classList.toggle('active',hybrid.enabled);
  $('hybridToggle').onclick=()=>{hybrid.enabled=!hybrid.enabled;$('hybridToggle').textContent=hybrid.enabled?'Hybrid On':'Hybrid Off';$('hybridToggle').classList.toggle('active',hybrid.enabled);if(!hybrid.enabled)hybridGraphics?.clear();try{localStorage.setItem('industrium-hybrid',hybrid.enabled?'on':'off')}catch(e){}notice('Hybrid rendering and microphysics '+(hybrid.enabled?'enabled':'disabled'))};
  $('hybridDetail').value=hybrid.detail;
