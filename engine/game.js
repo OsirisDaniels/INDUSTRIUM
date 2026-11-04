@@ -1,18 +1,18 @@
-import {Autonomy} from './autonomy.js?v=0231';
+import {Autonomy} from './autonomy.js?v=0233';
 import {createPlayer} from './player.js?v=0232';
 import {LivingWorld} from './living.js?v=0231';
-import {Intelligence} from './intelligence.js?v=0230';
-import {createCore} from './core.js?v=0230';
+import {Intelligence} from './intelligence.js?v=0233';
+import {createCore} from './core.js?v=0233';
 import {createCoreUI} from './core-ui.js?v=0230';
 import {createPerformance} from './performance.js?v=0170';
 import {createSound} from './sound.js?v=0231';
-import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0230';
+import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0233';
 import {createGameShell} from './shell.js?v=0230';
 import {createMigration} from './migration.js?v=0230';
 import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0100';
 import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
-import {Factory,PRICES,DEMAND,COLORS as MACHINE_COLORS} from '../js/factory.js?v=0230';
+import {Factory,PRICES,DEMAND,COLORS as MACHINE_COLORS} from '../js/factory.js?v=0233';
 import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-final';
 
 // Phaser owns the game scene, graphics texture, camera, pointer input and update loop.
