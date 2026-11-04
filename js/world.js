@@ -1,6 +1,6 @@
 export const W=160,H=120,N=W*H;
-export const T={AIR:0,SAND:1,WATER:2,STONE:3,ORE:4,FIRE:5,METAL:6,STEAM:7,WET_SAND:8,GOLD:9,RESIDUE:10,BURNT_RESIDUE:11,ICE:12,LAVA:13,GLASS:14};
-export const COLORS=[[11,20,29],[200,173,111],[55,139,202],[91,105,118],[193,130,70],[251,129,54],[158,214,211],[164,188,205],[133,113,86],[244,199,79],[125,92,92],[79,62,65],[143,204,232],[238,91,47],[151,208,196]];
+export const T={AIR:0,SAND:1,WATER:2,STONE:3,ORE:4,FIRE:5,METAL:6,STEAM:7,WET_SAND:8,GOLD:9,RESIDUE:10,BURNT_RESIDUE:11,ICE:12,LAVA:13,GLASS:14,SANDSOIL:15};
+export const COLORS=[[11,20,29],[200,173,111],[55,139,202],[91,105,118],[193,130,70],[251,129,54],[158,214,211],[164,188,205],[133,113,86],[244,199,79],[125,92,92],[79,62,65],[143,204,232],[238,91,47],[151,208,196],[111,87,64]];
 const GRANULAR=new Set([T.SAND,T.ORE,T.WET_SAND,T.GOLD,T.RESIDUE,T.BURNT_RESIDUE]);
 export class World{
  constructor(){this.grid=new Uint8Array(N);this.age=new Uint8Array(N);this.blocks=new Uint8Array(N);this.tick=0;this.dirty=true}
@@ -14,7 +14,7 @@ export class World{
  const g=this.grid;g.fill(0);this.age.fill(0);this.blocks.fill(0);this.tick=0;
  const heights=new Int16Array(W);let h=H-29;
  for(let x=0;x<W;x++){h=Math.max(H-38,Math.min(H-22,h+(Math.random()<.36?(Math.random()<.5?-1:1):0)));heights[x]=h}
- for(let x=0;x<W;x++)for(let y=heights[x];y<H;y++){const depth=y-heights[x],r=Math.random();g[y*W+x]=depth<4?(r<.77?T.SAND:T.STONE):r<.08?T.ORE:r<.77?T.STONE:T.SAND}
+ for(let x=0;x<W;x++)for(let y=heights[x];y<H;y++){const depth=y-heights[x],r=Math.random();g[y*W+x]=depth<4?(r<.77?T.SANDSOIL:T.SAND):r<.08?T.ORE:r<.77?T.STONE:T.SAND}
  for(let seam=0;seam<9;seam++){const cx=10+Math.floor(Math.random()*(W-20)),cy=H-9-Math.floor(Math.random()*19),rx=3+Math.floor(Math.random()*8),ry=2+Math.floor(Math.random()*4);for(let y=Math.max(1,cy-ry);y<Math.min(H-1,cy+ry);y++)for(let x=Math.max(1,cx-rx);x<Math.min(W-1,cx+rx);x++)if(((x-cx)/rx)**2+((y-cy)/ry)**2<1&&Math.random()<.8)g[y*W+x]=T.ORE}
  for(let pool=0;pool<3;pool++){const cx=18+Math.floor(Math.random()*(W-36)),cy=H-14-Math.floor(Math.random()*12),rx=5+Math.floor(Math.random()*7),ry=3+Math.floor(Math.random()*3);for(let y=Math.max(0,cy-ry);y<Math.min(H-1,cy+ry);y++)for(let x=Math.max(1,cx-rx);x<Math.min(W-1,cx+rx);x++)if(((x-cx)/rx)**2+((y-cy)/ry)**2<1)g[y*W+x]=y>=cy?T.WATER:T.AIR}
  for(let vein=0;vein<4;vein++){const x=5+Math.floor(Math.random()*(W-10)),y=H-4-Math.floor(Math.random()*21);for(let d=-3;d<=3;d++){const xx=x+d,yy=y+Math.round(d*.35);if(this.inside(xx,yy))g[yy*W+xx]=Math.random()<.18?T.GOLD:T.ORE}}
@@ -25,7 +25,7 @@ export class World{
  simulate(){
  this.tick++;const g=this.grid,a=this.age,blocks=this.blocks,reverse=!!(this.tick&1);
  for(let y=H-2;y>=1;y--)for(let z=0;z<W;z++){
- const x=reverse?W-z-1:z,i=y*W+x,v=g[i];if(!v||blocks[i]||v===T.STONE||v===T.METAL||v===T.GLASS)continue;
+ const x=reverse?W-z-1:z,i=y*W+x,v=g[i];if(!v||blocks[i]||v===T.STONE||v===T.METAL||v===T.GLASS||v===T.SANDSOIL)continue;
  const below=i+W,side=Math.random()<.5?-1:1;
  const adjacent=(fn)=>{for(const d of [-W,W,-1,1]){if((d===-1&&x===0)||(d===1&&x===W-1))continue;const j=i+d;if(j>=0&&j<N&&fn(j))return j}return -1};
  if(v===T.ICE){if(adjacent(j=>g[j]===T.FIRE||g[j]===T.LAVA)!==-1)this.set(x,y,T.WATER);continue}
