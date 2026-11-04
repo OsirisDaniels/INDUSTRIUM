@@ -7,9 +7,10 @@ const water=new Set([T.WATER,T.OIL,T.LAVA,T.ACID]);
 const gas=new Set([T.STEAM,T.VAPOUR,T.FIRE]);
 const minerals=new Set([T.ORE,T.GOLD,T.CRYSTAL,T.METAL,T.FUEL,T.ARTIFACT]);
 const rocky=new Set([T.STONE,T.BASALT,T.OBSIDIAN,T.SANDSOIL,T.GLASS]);
+const pixelBuffers=new WeakMap();
 export function paintTerrain(texture,world,now=0,quality=true){
  if(!texture)return;
- const ctx=texture.getContext(),pixels=ctx.createImageData(W,H),data=pixels.data,g=world.grid;
+ const ctx=texture.getContext();let pixels=pixelBuffers.get(texture);if(!pixels){pixels=ctx.createImageData(W,H);pixelBuffers.set(texture,pixels)}const data=pixels.data,g=world.grid;
  const time=(now/180)|0,seed=world.seed|0;
  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
   const i=y*W+x,t=g[i],c=COLORS[t]||COLORS[0],j=i*4,h=hash(x,y,seed),grain=h%19-9;
