@@ -116,3 +116,34 @@ body{background:#060d16}
 .coreRegion strong{font-size:11px}.coreRegion span{font-size:12px;color:#a4ebc9}.coreRegion small{font-size:10px;color:#a3bcc5}
 .coreLog{padding-left:18px;margin:0;display:grid;gap:8px;font-size:11px;color:#b9d2d3;line-height:1.5}
 @media(max-width:430px){.coreMetrics strong{font-size:14px}.coreIntro h3{font-size:17px}.coreRegions{gap:6px}.coreRegion{padding:8px}}
+
+/* Alpha 0.23: touch-first playable engineer and lower-cost mobile interface. */
+.playerHud{position:fixed;left:10px;top:calc(215px + env(safe-area-inset-top));z-index:11;display:flex;align-items:center;gap:7px;max-width:calc(100vw - 70px);background:#0c2431dc;border:1px solid #42716c;border-radius:11px;padding:6px 9px;box-shadow:0 5px 13px #0005;color:#d6fff0;font-size:10px;pointer-events:auto}
+.playerHud strong{font-size:10px;letter-spacing:.8px;white-space:nowrap}.playerHud span{font-size:10px;color:#a8d8ca;white-space:nowrap}
+.playerHud button{font-size:10px;padding:5px 7px;border-radius:7px;white-space:nowrap}
+.touchControls{position:fixed;z-index:13;left:12px;right:12px;bottom:calc(186px + env(safe-area-inset-bottom));display:flex;align-items:flex-end;justify-content:space-between;pointer-events:none}
+.touchControls[hidden]{display:none!important}
+.joyPad{width:104px;height:104px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,#2d5d58b8,#0c2639cb 65%);border:2px solid #68b9a8a9;box-shadow:inset 0 0 24px #0007,0 4px 15px #0007;touch-action:none;user-select:none;pointer-events:auto}
+.joyKnob{width:43px;height:43px;border-radius:50%;border:2px solid #b1ffdd;background:radial-gradient(circle at 35% 30%,#5aaf98,#1a554d);box-shadow:0 3px 12px #0008;pointer-events:none;will-change:transform}
+.jumpBtn{width:73px;height:73px;border-radius:50%;border:2px solid #eac683;background:linear-gradient(160deg,#635239,#2b393a);box-shadow:0 5px 18px #0009;pointer-events:auto;touch-action:none;font-size:12px;letter-spacing:1px;font-weight:800;color:#fff2cb}
+.jumpBtn:active{background:#927445;transform:scale(.96)}
+.coreForecast{border:1px solid #39777a;border-radius:12px;padding:12px;background:linear-gradient(135deg,#113843,#0d2732);display:grid;gap:7px}
+.coreForecast>strong{font-size:13px;color:#d9fff0}.coreForecast>small{color:#aacdd0;font-size:10px}
+.coreForecastGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.coreForecastGrid span{background:#071d2a;border:1px solid #39646a;border-radius:8px;padding:10px 6px;text-align:center;color:#95cdcb;font-size:9px;letter-spacing:.5px}
+.coreForecastGrid b{display:block;font-size:20px;color:#e1ffe8;margin-top:4px}
+.coreGroups{display:grid;gap:7px}.coreGroup{display:grid;grid-template-columns:1fr auto;gap:4px;color:#c3e3dd;font-size:11px}
+.coreGroup b{color:#f1ffe5;font-variant-numeric:tabular-nums}.coreMeter{grid-column:1/-1;height:5px;overflow:hidden;border-radius:5px;background:#133846}.coreMeter i{display:block;background:#88dabc;height:100%;border-radius:4px}
+.coreCheck{display:flex;align-items:center;gap:8px;color:#bdddd9;font-size:12px;padding:9px 10px;border:1px solid #31575d;border-radius:9px;background:#0e2733}
+.coreControls label{font-size:11px}
+@media(max-width:560px){
+ .playerHud{top:calc(195px + env(safe-area-inset-top));left:7px;gap:4px;padding:5px 6px}
+ .playerHud strong,.playerHud span{font-size:9px}
+ .playerHud button{font-size:9px;padding:5px 6px}
+ .joyPad{width:92px;height:92px}.joyKnob{width:38px;height:38px}
+ .jumpBtn{width:65px;height:65px}
+ .touchControls{bottom:calc(173px + env(safe-area-inset-bottom));left:9px;right:9px}
+ .gameDock,.gameSheet{backdrop-filter:none;-webkit-backdrop-filter:none}
+ .modeRail button{min-width:56px;font-size:10px;padding:9px 8px}
+}
+@media(max-height:650px){.playerHud{top:calc(166px + env(safe-area-inset-top))}.touchControls{bottom:calc(146px + env(safe-area-inset-bottom))}.joyPad{width:79px;height:79px}.jumpBtn{width:59px;height:59px}}
