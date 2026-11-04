@@ -1,3 +1,4 @@
+import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0150';
 import {createGameShell} from './shell.js?v=0141';
 import {createMigration} from './migration.js?v=0130';
 import {Dynamics} from './dynamics.js?v=0120';
@@ -12,7 +13,7 @@ import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-fina
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory);
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let shell,migration,operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
+let hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics;let shell,migration,operations,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='paint',material=T.SAND,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
 const notice=s=>{$('notice').textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
 const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
@@ -53,55 +54,18 @@ function makeTools(){
  $('new').onclick=()=>{if(!confirm('Replace the Phaser autosave with a new random planet?'))return;newWorld()};
  refreshButtons();
 }
-function setZoom(mult){if(!scene)return;const c=scene.cameras.main;c.setZoom(Phaser.Math.Clamp(c.zoom*mult,.7,3.5));clampCamera();status()}
+function setZoom(mult){if(!scene)return;targetZoom=Phaser.Math.Clamp(targetZoom*mult,.65,4.5);status()}
 function clampCamera(){if(!scene)return;const c=scene.cameras.main,visW=c.width/c.zoom,visH=c.height/c.zoom;if(visW>=WIDTH)c.centerOn(WIDTH/2,c.midPoint.y);if(visH>=HEIGHT)c.centerOn(c.midPoint.x,HEIGHT/2);c.setScroll(Phaser.Math.Clamp(c.scrollX,0,Math.max(0,WIDTH-visW)),Phaser.Math.Clamp(c.scrollY,0,Math.max(0,HEIGHT-visH)))}
 function saveEngine(silent=false){try{localStorage.setItem(KEY,JSON.stringify({grid:Array.from(world.grid),seed:world.seed,factory:factory.serialize(),environment:dynamics.snapshot(),savedAt:Date.now()}));if(!silent)notice('Factory saved');return true}catch(e){notice('Save failed: '+e.message);return false}}
 function newWorld(seed){const creative=factory.creative,weather=factory.weather;world.generate(seed);factory.load({creative,weather});dynamics.reset();world.dirty=true;saveEngine(true);renderTerrain();renderMachines();status();operations?.render();migration?.render();shell?.refreshCatalog();shell?.updateMenu();notice('New planet ready · Seed '+world.seed)}
 function travel(x,y){if(!scene)return;scene.cameras.main.centerOn(x*SCALE,y*SCALE);clampCamera();status()}
 function loadEngine(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||!world.import(s.grid))return false;world.seed=s.seed||0;factory.load(s.factory||{});dynamics.restore(s.environment);return true}catch(e){return false}}
-function renderTerrain(){
- if(!texture)return;
- const pixels=texture.getContext().createImageData(W,H),d=pixels.data;
- for(let i=0;i<world.grid.length;i++){const col=COLORS[world.grid[i]]||COLORS[0],j=i*4;d[j]=col[0];d[j+1]=col[1];d[j+2]=col[2];d[j+3]=255}
- texture.getContext().putImageData(pixels,0,0);texture.refresh();world.dirty=false;
-}
-function renderMachines(time=0){
- if(!buildGraphics)return;
- buildGraphics.clear();const livePower=factory.power();
- for(const m of factory.machines){
-  const color=Phaser.Display.Color.HexStringToColor(MACHINE_COLORS[m.kind]||'#c8d6dc').color,x=m.x*SCALE,y=m.y*SCALE;
-  buildGraphics.fillStyle(0x07131d,1);buildGraphics.fillRect(x-13,y-13,26,26);
-  buildGraphics.fillStyle(color,1);buildGraphics.fillRect(x-10,y-10,20,20);
-  buildGraphics.fillStyle(0xffffff,.32);buildGraphics.fillRect(x-10,y-10,20,3);
-  const pulse=(Math.sin(time*.005+m.x)+1)*.5;
-  if(['generator','furnace','refinery','combustor','kiln','distiller'].includes(m.kind)){buildGraphics.fillStyle(0xffbd63,.3+pulse*.6);buildGraphics.fillRect(x-6,y-6,12,12)}
-  if(['drill','deepdrill','crystaldrill','excavator','oilrig'].includes(m.kind)){buildGraphics.lineStyle(2,0xe4f5f5,.5+pulse*.5);buildGraphics.lineBetween(x-7,y+6,x-7+Math.floor(pulse*12),y+6)}
-  if(['belt','pump','hopper'].includes(m.kind)){buildGraphics.fillStyle(0x06151b,.8);buildGraphics.fillCircle(x-5+pulse*10,y,2.5)}
-  if(['belt','filter','hopper','pump','mixer','excavator','oilrig','distiller','condenser'].includes(m.kind)){
-   const dir=(m.dir||0)&3,dx=[1,0,-1,0][dir],dy=[0,1,0,-1][dir];
-   buildGraphics.lineStyle(2,0x09212a,1);buildGraphics.lineBetween(x-dx*5,y-dy*5,x+dx*4,y+dy*4);
-   buildGraphics.fillStyle(0x09212a,1);buildGraphics.fillTriangle(x+dx*7,y+dy*7,x+dx*2-dy*4,y+dy*2+dx*4,x+dx*2+dy*4,y+dy*2-dx*4);
-  }
-  if(m.kind!=='belt'&&m.kind!=='filter'){const bad=(m.integrity??100)<35||!!DEMAND[m.kind]&&!livePower.online;buildGraphics.fillStyle(bad?0xff6f65:0x78ecc3,1);buildGraphics.fillCircle(x+8,y-8,2.7)}
-  if((m.integrity??100)<40){buildGraphics.lineStyle(2,0xff6655);buildGraphics.strokeRect(x-12,y-12,24,24)}
- }
-}
-function renderEffects(time){
- if(!fxGraphics)return;
- fxGraphics.clear();
- if(showGrid&&scene?.cameras.main.zoom>=2){fxGraphics.lineStyle(1,0x79a2b1,.13);for(let x=0;x<=WIDTH;x+=40)fxGraphics.lineBetween(x,0,x,HEIGHT);for(let y=0;y<=HEIGHT;y+=40)fxGraphics.lineBetween(0,y,WIDTH,y)}
- if(!showEffects)return;
- for(const m of factory.machines){
-  const x=m.x*SCALE,y=m.y*SCALE,phase=time*.002+m.x*.31;
-  if(['furnace','kiln','combustor','refinery'].includes(m.kind)){
-   for(let i=0;i<3;i++){const rise=(phase*12+i*11)%42;fxGraphics.fillStyle(i%2?0xffc17a:0xb2d2d9,Math.max(.05,.36-rise/125));fxGraphics.fillCircle(x+Math.sin(phase+i)*8,y-14-rise,2+i%2)}
-  }
-  if(['generator','wind','solar','waterwheel'].includes(m.kind)){fxGraphics.lineStyle(1.5,0x91e8d1,.4+.3*Math.sin(phase*3));fxGraphics.strokeCircle(x,y,15+Math.sin(phase*2)*2)}
- }
-}
+function renderTerrain(time=worldTime){paintTerrain(texture,world,time,!batterySaver)}
+function renderMachines(time=0){drawMachines(buildGraphics,factory,time)}
+function renderEffects(time){drawAtmosphere(fxGraphics,world,time,showEffects,showGrid,scene?.cameras.main.zoom||1);if(ambienceGraphics)ambienceGraphics.clear()}
 function worldPoint(pointer){const p=scene.cameras.main.getWorldPoint(pointer.x,pointer.y);return{x:Math.floor(p.x/SCALE),y:Math.floor(p.y/SCALE)}}
 function interact(pointer,first){
- const p=worldPoint(pointer);if(!valid(p.x,p.y))return;
+ const p=worldPoint(pointer);hoverCell=p;if(!valid(p.x,p.y))return;
  if(mode==='pan'){if(lastPointer){const c=scene.cameras.main;c.scrollX-=(pointer.x-lastPointer.x)/c.zoom;c.scrollY-=(pointer.y-lastPointer.y)/c.zoom;clampCamera()}lastPointer={x:pointer.x,y:pointer.y};return}
  if(mode==='inspect'){if(!first)return;const m=factory.machineAt(p.x,p.y);operations?.inspect(m);if(m)shell?.openSheet('industry',true);notice(m?(CATALOG[m.kind]?.title||m.kind)+' · '+(m.lastAction||'Ready')+' · Health '+(m.integrity??100)+'%':world.region(p.x).title+' · material '+world.at(p.x,p.y));return}
  if(mode==='build'){if(!first)return;const result=factory.place(building,p.x,p.y);notice(result||'Built '+(CATALOG[building]?.title||building));renderMachines();status();operations?.render();return}
@@ -118,14 +82,16 @@ function startPhaser(){
    terrain=this.add.image(0,0,'planet-terrain').setOrigin(0,0).setScale(SCALE).setDepth(0);
    buildGraphics=this.add.graphics().setDepth(5);
    overlayGraphics=this.add.graphics().setDepth(7);
+   previewGraphics=this.add.graphics().setDepth(9);
+   ambienceGraphics=this.add.graphics().setDepth(2);
    fxGraphics=this.add.graphics().setDepth(6);
-   this.cameras.main.setBounds(0,0,WIDTH,HEIGHT).setZoom(1.4).centerOn(240,350);
+   this.cameras.main.setBounds(0,0,WIDTH,HEIGHT).setZoom(targetZoom).centerOn(240,350);
    this.scale.on('resize',()=>{clampCamera();status()});
    let pinch=0;
    this.input.on('pointerdown',p=>{if(this.input.pointer1.isDown&&this.input.pointer2.isDown){drag=false;lastPointer=null;return}drag=true;lastPointer=null;interact(p,true)});
-   this.input.on('pointermove',p=>{const a=this.input.pointer1,b=this.input.pointer2;if(a.isDown&&b.isDown){const d=Phaser.Math.Distance.Between(a.x,a.y,b.x,b.y);if(pinch>0&&d>4)setZoom(Math.max(.85,Math.min(1.15,d/pinch)));pinch=d;drag=false;return}pinch=0;if(drag&&p.isDown)interact(p,false)});
+   this.input.on('pointermove',p=>{const a=this.input.pointer1,b=this.input.pointer2;if(a.isDown&&b.isDown){const d=Phaser.Math.Distance.Between(a.x,a.y,b.x,b.y);if(pinch>0&&d>4)setZoom(Math.max(.85,Math.min(1.15,d/pinch)));pinch=d;drag=false;hoverCell=null;return}pinch=0;hoverCell=worldPoint(p);if(drag&&p.isDown)interact(p,false)});
    this.input.on('pointerup',()=>{drag=false;pinch=0;lastPointer=null});
-   this.input.on('gameout',()=>{drag=false;lastPointer=null});
+   this.input.on('gameout',()=>{drag=false;lastPointer=null;hoverCell=null});
    this.input.on('wheel',(pointer,objects,dx,dy)=>{setZoom(dy>0?.9:1.1)});
 
    this.input.addPointer(2);
@@ -135,11 +101,16 @@ function startPhaser(){
    notice('Phaser scene ready. Select a material or machine, then tap the world.');
   }
   update(time,delta){
+   worldTime=time;
+   const camera=this.cameras.main;
+   if(Math.abs(camera.zoom-targetZoom)>.003){camera.setZoom(Phaser.Math.Linear(camera.zoom,targetZoom,Math.min(1,delta*.012)));clampCamera()}
+   if(hoverCell&&mode!=='pan'){previewReason=drawPlacement(previewGraphics,{mode,cell:hoverCell,brush,material,building,factory,world})}
+   else previewGraphics?.clear();
    if(paused)return;
    acc=Math.min(acc+Math.min(delta,100),200);
    const step=batterySaver?50:33.333;let count=0;
    while(acc>=step&&count<3){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if(++ops%6===0){factory.operate();if(factory.pendingEvents.length)notice(factory.pendingEvents.shift())}}}
-   if(time-lastFrame>(batterySaver?110:65)){if(world.dirty||time-lastFrame>450)renderTerrain();renderMachines(time);renderEffects(time);status();lastFrame=time}
+   if(time-lastFrame>(batterySaver?110:65)){if(world.dirty||time-lastFrame>450)renderTerrain(time);renderMachines(time);renderEffects(time);status();lastFrame=time}
    if(time-autoSaveTime>90000){autoSaveTime=time;saveEngine(true)}
    frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';frameCount=0;perfTime=time}
   }
