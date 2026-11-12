@@ -228,6 +228,13 @@ body{background:#060d16}
 .menuPanel h1 { margin:8px 0 16px; }
 .menuActions { margin-bottom:0; }
 
+body:has(.gameSheet:not([hidden])) :is(.commandContext,.playerHud,.touchControls,.buildControls,.miniMapPanel) {
+ visibility:hidden;
+}
+body:has(.gameSheet:not([hidden])) :is(.cameraRail,.joyPad,.jumpBtn) {
+ pointer-events:none;
+}
+
 @media (max-width:620px) {
  :root { --ui-gutter:8px; }
  .hudBar { grid-template-columns:minmax(0,1fr) auto; gap:2px 6px; width:100%; padding:4px 5px 2px 10px; }
