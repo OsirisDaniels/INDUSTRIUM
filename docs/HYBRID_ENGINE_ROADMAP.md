@@ -43,6 +43,10 @@ Multi-touch cancels pending terrain strokes and suppresses world actions until a
 
 Inspect shows live machine conditions, buffer contents, grid demand and the latest factory action. Belts, filters, hoppers, pumps and condensers show their outlet or currently available receiver on the world map. Diagnostics read existing simulation state and add no save fields.
 
+## Stage 4.6: World interface (Alpha 0.32)
+
+Consolidated the world tools into one dock, moved telemetry and diagnostics to their relevant panels, and show camera, engineer and placement controls when their tools are active. The build catalog shows unlocked machines by default and the settings panel groups related controls.
+
 ## Stage 5: Worker evaluation (planned)
 
 Profile the full simulation, then test worker-owned physics using transferable snapshots and a command queue. Keep factory, player, machine placement, saves and world physics synchronized. Only ship worker mode if it produces a measured improvement on actual mobile devices.
@@ -56,4 +60,4 @@ Profile the full simulation, then test worker-owned physics using transferable s
 5. Fallback mode remains usable on lower-end phones.
 6. Every new physics rule has deterministic test fixtures and a bounded work budget.
 
-**Status (Alpha 0.31):** Stages 1–3 have initial implementations; Stage 4 includes camera-aware rendering and the first runtime machine sprite atlas. Stage 5 remains planned. Pipe failures, advanced structural supports, authored sprite assets and GPU shaders remain unfinished. Android gameplay and FPS require device validation.
+**Status (Alpha 0.32):** Stages 1–3 have initial implementations; Stage 4 includes camera-aware rendering and the first runtime machine sprite atlas. Stage 5 remains planned. Pipe failures, advanced structural supports, authored sprite assets and GPU shaders remain unfinished. Android gameplay and FPS require device validation.

@@ -11,7 +11,7 @@ import {createCoreUI} from './core-ui.js?v=0230';
 import {createPerformance} from './performance.js?v=0290';
 import {createSound} from './sound.js?v=0231';
 import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement,drawMachineRoute} from './visuals.js?v=0310';
-import {createGameShell} from './shell.js?v=0233';
+import {createGameShell} from './shell.js?v=0320';
 import {createMigration} from './migration.js?v=0250';
 import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0310';
@@ -34,7 +34,13 @@ try{hybrid.enabled=localStorage.getItem('industrium-hybrid')!=='off';hybrid.deta
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100);sound.setAmbience(localStorage.getItem('industrium-ambience')!=='off')}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
 let lastRouteKey='',lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0,previousUpdate=0;let engineerSprite=null,industrialSprites=null,spriteMode=true,shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,buildCell=null,buildDirection=0,lastFrame=0,acc=0,ops=0;
-const notice=s=>{const el=$('notice');if(el.textContent!==s)el.textContent=s};
+let noticeTimer;
+const notice=s=>{
+ const el=$('notice');
+ if(el.textContent!==s)el.textContent=s;
+ el.hidden=false;clearTimeout(noticeTimer);
+ noticeTimer=setTimeout(()=>{el.hidden=true},3400);
+};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
 const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
 const buildNames=['generator','drill','collector','furnace','solar','wind','storage','belt','pump','mixer','sifter','oilrig','distiller','combustor','battery','crystaldrill','surveyor','stabilizer','crusher','warehouse','deepdrill','refinery','hopper','kiln','press','filter','cooler','excavator','condenser','waterwheel'];
@@ -42,14 +48,14 @@ const performanceNow=()=>performance.now();
 const valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function status(){
  const p=factory.power(),c=scene?.cameras.main,x=c?Math.max(0,Math.min(W-1,Math.floor(c.midPoint.x/SCALE))):0;
- const region=world.region(x);$('region').textContent=region.title;if(!factory.regionVisits.includes(region.id)){factory.regionVisits.push(region.id);const r=living.regions[Math.floor(x/60)];if(r)r.visits++;living.record('Expedition reached '+region.title,region.id)}
+ const region=world.region(x);if(!factory.regionVisits.includes(region.id)){factory.regionVisits.push(region.id);const r=living.regions[Math.floor(x/60)];if(r)r.visits++;living.record('Expedition reached '+region.title,region.id)}
  $('power').textContent='Power '+p.production+' / '+p.use;
  $('credits').textContent='Credits $'+Math.floor(factory.credits);
  $('machines').textContent=factory.machines.length+' machines';
  $('heat').textContent='Heat '+dynamics.heatPeak;
  $('pollution').textContent='Pollution '+dynamics.pollutionPeak;
- $('worldBiome').textContent=region.title.toUpperCase()+' · '+living.getWeather(x).toUpperCase();$('worldCoords').textContent=x+', '+(c?Math.max(0,Math.min(H-1,Math.floor(c.midPoint.y/SCALE))):0)+' · '+factory.machines.length+' active installations';
- $('worldMode').textContent=mode==='build'?'CONSTRUCTION':mode==='paint'?'EXCAVATION':mode==='inspect'?'MACHINE INSPECTOR':mode==='walk'?'ON FOOT':'CAMERA CONTROL';
+ $('worldBiome').textContent=region.title.toUpperCase()+' · '+living.getWeather(x).toUpperCase();$('worldCoords').textContent=x+', '+(c?Math.max(0,Math.min(H-1,Math.floor(c.midPoint.y/SCALE))):0);
+ $('power').classList.toggle('warning',p.production<p.use);
  $('worldTime').textContent='CYCLE '+Math.max(1,Math.floor(world.tick/900)+1);
  $('playerTitle').textContent=player.style.toUpperCase()+' 01';$('playerStatus').textContent='HP '+Math.round(player.health)+' · Energy '+Math.round(player.stamina);
  updateMachineInspector();
@@ -64,19 +70,30 @@ function updateMachineInspector(){
 }
 function refreshButtons(){
  if(mode!=='build')buildCell=null;
+ if(mode!=='pan'&&miniOpen){miniOpen=false;$('miniMapPanel').hidden=true;$('mapToggle').setAttribute('aria-expanded','false')}
  refreshBuildControls();
  for(const b of document.querySelectorAll('[data-material]'))b.classList.toggle('active',mode==='paint'&&material===Number(b.dataset.material));
  for(const b of document.querySelectorAll('[data-machine]'))b.classList.toggle('active',mode==='build'&&building===b.dataset.machine);
- for(const id of ['paint','pan','walk','inspect'])$(id).classList.toggle('active',mode===id);
- $('playerStyle').value=player.style;$('paint').textContent=factory.creative?'Draw':'Excavate';$('touchControls').hidden=mode!=='walk';$('followPlayer').textContent=player.follow?'Follow On':'Follow Off';$('followPlayer').classList.toggle('active',player.follow);
+ for(const id of ['pan','walk','inspect']){
+  $(id).classList.toggle('active',mode===id);
+  $(id).setAttribute('aria-pressed',String(mode===id));
+ }
+ $('paint').classList.toggle('active',mode==='paint'&&material===-1);
+ document.querySelector('[data-pane="build"]').classList.toggle('toolActive',mode==='build');
+ document.querySelector('[data-pane="terrain"]').classList.toggle('toolActive',mode==='paint');
+ $('playerHud').hidden=mode!=='walk';
+ $('cameraRail').hidden=mode!=='pan';
+ $('terrainHint').hidden=factory.creative;
+ $('playerStyle').value=player.style;$('touchControls').hidden=mode!=='walk';$('followPlayer').textContent=player.follow?'Follow On':'Follow Off';$('followPlayer').classList.toggle('active',player.follow);
  $('pause').textContent=paused?'Resume':'Pause';
- $('speed').textContent=speed+'× speed';$('toolName').textContent='Tool: '+(mode==='build'?(CATALOG[building]?.title||building):mode==='paint'?(materialNames.find(m=>m[1]===material)?.[0]||'Paint'):mode==='inspect'?'Inspector':mode==='walk'?'Engineer':'Camera');
+ $('pause').setAttribute('aria-pressed',String(paused));
+ $('speed').textContent=speed+'× speed';$('toolName').textContent=(mode==='build'?(CATALOG[building]?.title||building):mode==='paint'?(material===-1?'Excavate':materialNames.find(m=>m[1]===material)?.[0]||'Terrain'):mode==='inspect'?'Inspector':mode==='walk'?'Engineer':'Camera');
 }
 function makeTools(){
  const mat=$('materials'),machines=$('factoryTools');
- for(const [name,id] of materialNames){const b=document.createElement('button');b.textContent=name;b.dataset.material=id;b.dataset.restricted=restrictedMaterials.has(id)?'1':'0';if(id>=0&&COLORS[id]){const color=COLORS[id];b.style.borderLeft='4px solid rgb('+color.join(',')+')'}b.onclick=()=>{if(!factory.creative&&id!==-1){notice('Career Mode: free material spawning is locked. Use Excavate or switch to Creative.');sound.play('error');return}material=id;mode='paint';refreshButtons();sound.play('select');notice(name+' tool selected')};mat.append(b)}
- for(const kind of buildNames){const b=document.createElement('button');b.textContent=(CATALOG[kind]?.title||kind)+' · $'+PRICES[kind];b.dataset.machine=kind;b.dataset.price=PRICES[kind];b.dataset.category=CATALOG[kind]?.category||'Other';b.onclick=()=>{if(!unlocked(kind,factory)){notice((CATALOG[kind]?.title||kind)+' locked: '+unlockHint(kind));shell?.refreshCatalog();return}building=kind;buildCell=null;buildDirection=0;mode='build';refreshButtons();sound.play('select');notice('Touch the world to preview '+(CATALOG[kind]?.title||kind))};machines.append(b)}
- for(const id of ['paint','pan','walk','inspect'])$(id).onclick=()=>{if(id==='paint'&&!factory.creative)material=-1;if(id==='walk'||id==='pan')player.follow=id==='walk';mode=id;sound.play('select');refreshButtons();notice(id==='pan'?'Drag with one finger to pan. Pinch with two to zoom.':id==='walk'?'Use the thumb joystick and JUMP, or tap to walk.':id==='inspect'?'Tap machinery to inspect':'Tap or drag to edit terrain')};
+ for(const [name,id] of materialNames){if(id===-1)continue;const b=document.createElement('button');b.textContent=name;b.dataset.material=id;b.dataset.restricted=restrictedMaterials.has(id)?'1':'0';if(id>=0&&COLORS[id]){const color=COLORS[id];b.style.borderLeft='4px solid rgb('+color.join(',')+')'}b.onclick=()=>{if(!factory.creative&&id!==-1){notice('Career Mode: free material spawning is locked. Use Excavate or switch to Creative.');sound.play('error');return}material=id;mode='paint';refreshButtons();sound.play('select');notice(name+' tool selected')};mat.append(b)}
+ for(const kind of buildNames){const b=document.createElement('button');const title=document.createElement('strong'),price=document.createElement('small');title.textContent=CATALOG[kind]?.title||kind;price.textContent='$'+PRICES[kind];b.append(title,price);b.dataset.machine=kind;b.onclick=()=>{if(!unlocked(kind,factory)){notice((CATALOG[kind]?.title||kind)+' locked: '+unlockHint(kind));shell?.refreshCatalog();return}building=kind;buildCell=null;buildDirection=0;mode='build';refreshButtons();sound.play('select');notice('Touch the world to preview '+(CATALOG[kind]?.title||kind))};machines.append(b)}
+ for(const id of ['paint','pan','walk','inspect'])$(id).onclick=()=>{shell?.closeSheet();if(id==='paint')material=-1;player.follow=id==='walk';hoverCell=null;mode=id;sound.play('select');refreshButtons();notice(id==='pan'?'Drag to pan · Pinch to zoom':id==='walk'?'Use the joystick or tap to walk':id==='inspect'?'Tap a machine to inspect it':'Drag over terrain to excavate')};
  $('buildConfirm').onclick=()=>{if(mode==='build'&&buildCell)placeBuilding(buildCell)};
  $('buildRotate').onclick=()=>{buildDirection=(buildDirection+1)%4;refreshBuildControls()};
  $('buildCancel').onclick=()=>{buildCell=null;hoverCell=null;refreshBuildControls()};
@@ -105,7 +122,6 @@ function makeTools(){
  $('batterySaver').onclick=()=>{batterySaver=!batterySaver;$('batterySaver').classList.toggle('active',batterySaver);$('batterySaver').textContent='Saver '+(batterySaver?'On':'Off');notice('Battery saver '+(batterySaver?'enabled: reduced render and simulation frequency':'disabled'))};
  $('environment').onclick=()=>{dynamics.active=!dynamics.active;$('environment').textContent='Dynamics '+(dynamics.active?'On':'Off');$('environment').classList.toggle('active',dynamics.active);notice('Environmental simulation '+(dynamics.active?'enabled':'paused'))};
  $('home').onclick=()=>{if(!scene)return;scene.cameras.main.centerOn(480,350);clampCamera();status()};
- $('undoTool').onclick=()=>{mode='pan';hoverCell=null;previewGraphics?.clear();refreshButtons();notice('Camera control selected')};
  $('followPlayer').onclick=()=>{player.follow=!player.follow;refreshButtons();sound.play('select');notice(player.follow?'Camera follows engineer':'Free camera enabled')};
  const requestJump=()=>{if(mode==='walk'&&!paused)player.jump()};
  $('jumpBtn').onpointerdown=e=>{e.preventDefault();requestJump()};
@@ -116,8 +132,8 @@ function makeTools(){
  pad.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();moveJoy(e)}});
  const releaseJoy=e=>{if(e.pointerId===joyPointer){joyPointer=null;joyAxis=0;joyJumpLatched=false;knob.style.transform='translate(0,0)'}};
  pad.addEventListener('pointerup',releaseJoy);pad.addEventListener('pointercancel',releaseJoy);pad.addEventListener('lostpointercapture',releaseJoy);
- $('mapToggle').onclick=()=>{miniOpen=!miniOpen;$('miniMapPanel').hidden=!miniOpen;if(miniOpen)drawMiniMap(true)};
- $('miniMapClose').onclick=()=>{miniOpen=false;$('miniMapPanel').hidden=true};
+ $('mapToggle').onclick=()=>{miniOpen=!miniOpen;$('miniMapPanel').hidden=!miniOpen;$('mapToggle').setAttribute('aria-expanded',String(miniOpen));if(miniOpen)drawMiniMap(true)};
+ $('miniMapClose').onclick=()=>{miniOpen=false;$('miniMapPanel').hidden=true;$('mapToggle').setAttribute('aria-expanded','false')};
  $('miniMap').onclick=e=>{if(!scene)return;const r=e.currentTarget.getBoundingClientRect(),x=Math.max(0,Math.min(W-1,Math.floor((e.clientX-r.left)/r.width*W))),y=Math.max(0,Math.min(H-1,Math.floor((e.clientY-r.top)/r.height*H)));travel(x,y);notice('Camera moved to '+world.region(x).title)};
  $('zoomIn').onclick=()=>{sound.play('zoom');setZoom(1.25)};
  $('zoomOut').onclick=()=>{sound.play('zoom');setZoom(.8)};
@@ -281,7 +297,6 @@ function startPhaser(){
    status();
    $('loading').classList.add('hide');
    $('engine').textContent='Phaser '+Phaser.VERSION+' · '+(this.game.renderer.type===Phaser.WEBGL?'WebGL':'Canvas');
-   notice('Phaser scene ready. Select a material or machine, then tap the world.');
   }
   update(time,delta){
    const elapsed=previousUpdate?time-previousUpdate:delta;
@@ -297,7 +312,7 @@ function startPhaser(){
     if(previewKey){
      previewReason=drawPlacement(previewGraphics,{mode,cell,brush,material,building,factory,world,direction:buildDirection});
      const label=$('previewHint');label.hidden=!!buildCell;if(buildCell)refreshBuildControls();
-     const message=mode==='build'?(previewReason?'BLOCKED · '+previewReason:'READY · '+(CATALOG[building]?.title||building)+' · $'+PRICES[building]):mode==='inspect'?'INSPECT · Tap a machine':'DRAW · '+(materialNames.find(m=>m[1]===material)?.[0]||'Terrain')+' · Brush '+brush;
+     const message=mode==='build'?(previewReason||'Ready · $'+PRICES[building]):mode==='inspect'?'Select a machine':'Brush '+brush;
      if(message!==lastPreviewText){label.textContent=message;lastPreviewText=message}
     }else{previewGraphics?.clear();$('previewHint').hidden=true}
    }
