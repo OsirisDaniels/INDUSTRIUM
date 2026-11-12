@@ -31,6 +31,10 @@ Implemented optional bounded structural sampling with exposed-roof stress, limit
 
 Added a procedural engineer sprite atlas for idle, walking, jumping and damage states, with directional mirroring and vector fallback. Added camera-limited fluid glints and lava heat ripples. No new material IDs, save schema changes or external assets. Authored sprites, true refraction shaders and Android profiling remain planned.
 
+## Stage 4.3: Mobile input and frame pacing (Alpha 0.29)
+
+Touch jump and joystick up queue a jump for the player physics step, with a short buffer for presses just before landing. Auto performance starts at Balanced on touch-first devices and reduces workload when frame cadence or JavaScript timing indicates sustained slowdown. Save format is unchanged. Physical Android validation remains open.
+
 ## Stage 5: Worker evaluation (planned)
 
 Profile the full simulation, then test worker-owned physics using transferable snapshots and a command queue. Keep factory, player, machine placement, saves and world physics synchronized. Only ship worker mode if it produces a measured improvement on actual mobile devices.
@@ -44,4 +48,4 @@ Profile the full simulation, then test worker-owned physics using transferable s
 5. Fallback mode remains usable on lower-end phones.
 6. Every new physics rule has deterministic test fixtures and a bounded work budget.
 
-**Status (Alpha 0.28):** Stages 1–3 have initial implementations; Stage 4 includes camera-aware rendering and the first runtime machine sprite atlas. Stage 5 remains planned. Pipe failures, advanced structural supports, authored sprite assets and GPU shaders remain unfinished. Android gameplay and FPS require device validation.
+**Status (Alpha 0.29):** Stages 1–3 have initial implementations; Stage 4 includes camera-aware rendering and the first runtime machine sprite atlas. Stage 5 remains planned. Pipe failures, advanced structural supports, authored sprite assets and GPU shaders remain unfinished. Android gameplay and FPS require device validation.
