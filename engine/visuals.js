@@ -1,6 +1,6 @@
 // INDUSTRIUM Alpha 0.15: deterministic hybrid pixel-terrain and vector-machine art.
 import {W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
-import {COLORS as MACHINE_COLOURS,DEMAND} from '../js/factory.js?v=0233';
+import {COLORS as MACHINE_COLOURS,DEMAND,ROTATABLE_MACHINES} from '../js/factory.js?v=0300';
 const hash=(x,y,seed=0)=>{let n=Math.imul(x+seed,374761393)+Math.imul(y+seed*3,668265263);n=Math.imul(n^(n>>>13),1274126177);return(n^(n>>>16))>>>0};
 const clamp=v=>Math.max(0,Math.min(255,v|0));
 const water=new Set([T.WATER,T.OIL,T.LAVA,T.ACID]);
@@ -141,7 +141,7 @@ export function drawAtmosphere(g,world,time=0,enabled=true,grid=false,zoom=1,wea
   g.fillStyle(k%3===0?0xb0e8e9:0x8bb9d0,.1);g.fillCircle(x,y,1+(k%2));
  }
 }
-export function drawPlacement(g,{mode,cell,brush,material,building,factory,world}){
+export function drawPlacement(g,{mode,cell,brush,material,building,factory,world,direction=0}){
  if(!g)return;g.clear();if(!cell)return;
  const x=cell.x,y=cell.y;if(x<0||y<0||x>=W||y>=H)return;
  const cx=x*4,cy=y*4;
@@ -151,6 +151,11 @@ export function drawPlacement(g,{mode,cell,brush,material,building,factory,world
   g.lineStyle(2,color,.9);g.strokeRoundedRect(cx-14,cy-14,28,28,4);
   g.lineStyle(1,color,.3);g.strokeCircle(cx,cy,28);
   g.fillStyle(color,1);g.fillCircle(cx,cy,2);
+  if(ROTATABLE_MACHINES.has(building)){
+   const dx=[1,0,-1,0][direction],dy=[0,1,0,-1][direction];
+   g.lineStyle(2,color,1);g.lineBetween(cx,cy,cx+dx*19,cy+dy*19);
+   g.fillTriangle(cx+dx*24,cy+dy*24,cx+dx*16-dy*5,cy+dy*16+dx*5,cx+dx*16+dy*5,cy+dy*16-dx*5);
+  }
   return reason||null;
  }
  if(mode==='paint'){

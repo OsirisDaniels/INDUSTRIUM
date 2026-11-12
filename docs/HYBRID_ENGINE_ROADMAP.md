@@ -35,6 +35,10 @@ Added a procedural engineer sprite atlas for idle, walking, jumping and damage s
 
 Touch jump and joystick up queue a jump for the player physics step, with a short buffer for presses just before landing. Auto performance starts at Balanced on touch-first devices and reduces workload when frame cadence or JavaScript timing indicates sustained slowdown. Save format is unchanged. Physical Android validation remains open. Alpha 0.29.1 creates the vector engineer only when the animated sprite is unavailable.
 
+## Stage 4.4: Touch navigation and construction (Alpha 0.30)
+
+Multi-touch cancels pending terrain strokes and suppresses world actions until all fingers lift. Touch construction previews the selected cell with a separate Place button, blocked-placement feedback and rotation for directional machinery. Mouse placement remains immediate. Existing saves already store each machine’s direction.
+
 ## Stage 5: Worker evaluation (planned)
 
 Profile the full simulation, then test worker-owned physics using transferable snapshots and a command queue. Keep factory, player, machine placement, saves and world physics synchronized. Only ship worker mode if it produces a measured improvement on actual mobile devices.
@@ -48,4 +52,4 @@ Profile the full simulation, then test worker-owned physics using transferable s
 5. Fallback mode remains usable on lower-end phones.
 6. Every new physics rule has deterministic test fixtures and a bounded work budget.
 
-**Status (Alpha 0.29):** Stages 1–3 have initial implementations; Stage 4 includes camera-aware rendering and the first runtime machine sprite atlas. Stage 5 remains planned. Pipe failures, advanced structural supports, authored sprite assets and GPU shaders remain unfinished. Android gameplay and FPS require device validation.
+**Status (Alpha 0.30):** Stages 1–3 have initial implementations; Stage 4 includes camera-aware rendering and the first runtime machine sprite atlas. Stage 5 remains planned. Pipe failures, advanced structural supports, authored sprite assets and GPU shaders remain unfinished. Android gameplay and FPS require device validation.
