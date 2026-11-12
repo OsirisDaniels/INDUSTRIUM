@@ -6,6 +6,7 @@ export const SUPPLY={generator:24,solar:14,wind:32};
 export const COLORS={generator:'#62d3aa',drill:'#f0b76d',collector:'#a9a8f6',furnace:'#ed8577',solar:'#79c4ef',belt:'#efcc76',storage:'#d0a1e8',wind:'#9ee0bd',crusher:'#edb75b',warehouse:'#ba9edb',deepdrill:'#f5a25f',refinery:'#f28c8b',pump:'#56aee0',sifter:'#d1aa6d',hopper:'#90c3bb',kiln:'#e37966',press:'#d39bd8',filter:'#85d2a7',cooler:'#8ed3f3',mixer:'#81bdb8',excavator:'#e0aa75',oilrig:'#6979b4',distiller:'#ba91d7',combustor:'#f5a561',crystaldrill:'#b69af2',condenser:'#78dbe2',waterwheel:'#83c7eb',stabilizer:'#b2debd',surveyor:'#edc872',battery:'#b3d581'};
 export const ROTATABLE_MACHINES=new Set(['belt','pump','filter','hopper','mixer','excavator','oilrig','distiller','condenser']);
 const dirs=[[1,0],[0,1],[-1,0],[0,-1]];
+const directionalTransport=new Set(['belt','filter','hopper']);
 const KEYS=['ore','gold','wet_sand','residue','burnt_residue','oil','fuel','crystal'];
 const MATERIAL={[T.ORE]:'ore',[T.GOLD]:'gold',[T.WET_SAND]:'wet_sand',[T.RESIDUE]:'residue',[T.BURNT_RESIDUE]:'burnt_residue',[T.OIL]:'oil',[T.FUEL]:'fuel',[T.CRYSTAL]:'crystal'};
 const MATERIAL_ID={ore:T.ORE,gold:T.GOLD,wet_sand:T.WET_SAND,residue:T.RESIDUE,burnt_residue:T.BURNT_RESIDUE,oil:T.OIL,fuel:T.FUEL,crystal:T.CRYSTAL};
@@ -42,7 +43,8 @@ export class Factory{
  return {production,base,reserve,use,online:production>=use&&production>0,efficiency:use===0?100:Math.min(100,Math.round(production/use*100)),daylight}
  }
 
- rotate(x,y){const m=this.machines.find(m=>Math.abs(m.x-x)<=3&&Math.abs(m.y-y)<=3&&ROTATABLE_MACHINES.has(m.kind));if(!m)return false;m.dir=(m.dir+1)%4;this.world.dirty=true;return true}
+ rotateMachine(m){if(!m||!ROTATABLE_MACHINES.has(m.kind))return false;m.dir=(m.dir+1)%4;this.world.dirty=true;return true}
+ rotate(x,y){return this.rotateMachine(this.machines.find(m=>Math.abs(m.x-x)<=3&&Math.abs(m.y-y)<=3&&ROTATABLE_MACHINES.has(m.kind)))}
  machineAt(x,y){return this.machines.find(m=>Math.abs(m.x-x)<=3&&Math.abs(m.y-y)<=3)}
  intake(m,keys,radius=4){if(!m.capacity||this.quantity(m)>=m.capacity)return false;const g=this.world;for(let r=1;r<=radius;r++){for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;const x=m.x+dx,y=m.y+dy,k=MATERIAL[g.at(x,y)];if(k&&keys.includes(k)&&this.accepts(m,k)){g.set(x,y,T.AIR);m.inventory[k]++;m.lastAction='Collected '+k.replaceAll('_',' ');return true}}}return false}
  transfer(from,to,key){if(!from.inventory[key]||!this.accepts(to,key)||this.quantity(to)>=to.capacity)return false;from.inventory[key]--;to.inventory[key]++;this.automated++;from.lastAction='Sending '+key.replaceAll('_',' ');to.lastAction='Receiving '+key.replaceAll('_',' ');return true}
@@ -50,11 +52,44 @@ export class Factory{
  emit(m,key){const t=MATERIAL_ID[key];if(t==null)return false;const [dx,dy]=dirs[m.dir],g=this.world;const positions=[[dx*4,dy*4],[dx*5,dy*5],[0,4],[4,0],[-4,0],[0,-4],[3,3],[-3,3],[3,-3],[-3,-3]];for(const [ox,oy] of positions){const x=m.x+ox,y=m.y+oy;if(g.inside(x,y)&&g.at(x,y)===T.AIR&&!g.blocks[y*W+x]){g.set(x,y,t);m.lastAction='Released '+key.replaceAll('_',' ');return true}}return false}
  output(m,keys=['ore']){for(const key of keys){if(!m.inventory[key])continue;const to=this.target(m,key);if(to){this.transfer(m,to,key);return true}if(['sifter','kiln','press','hopper','mixer','oilrig','distiller','excavator','crystaldrill'].includes(m.kind)&&this.emit(m,key)){m.inventory[key]--;return true}}return false}
  collectLooseOre(m){return this.intake(m,KEYS,2)}
- pumpWater(m){const [dx,dy]=dirs[m.dir],outX=m.x+dx*9,outY=m.y+dy*9,g=this.world;if(!g.inside(outX,outY)||g.at(outX,outY)!==T.AIR||g.blocks[outY*W+outX]){m.lastAction='Outlet blocked';return}
+ outlet(m,distance){const [dx,dy]=dirs[m.dir&3];return{x:m.x+dx*distance,y:m.y+dy*distance}}
+ transportKeys(m){return m.kind==='filter'?['gold','crystal']:KEYS}
+ transportTarget(m,key,direct,moved){
+  let to=direct;
+  if((!to||to===m||moved?.has(to)||!this.accepts(to,key)||this.quantity(to)>=to.capacity)&&m.smartRoute)to=this.target(m,key);
+  return to&&to!==m&&!moved?.has(to)&&!to.autoHold&&!to.safetyHold&&this.accepts(to,key)&&this.quantity(to)<to.capacity?to:null;
+ }
+ diagnose(m){
+  const demand=DEMAND[m.kind]||0,used=this.quantity(m),lastAction=m.lastAction||'Ready';
+  const full=m.capacity>0&&used>=m.capacity,logistics=directionalTransport.has(m.kind);
+  let route=null,blocked=false;
+  if(logistics){
+   const outlet=this.outlet(m,6),direct=this.machineAt(outlet.x,outlet.y);
+   const keys=this.transportKeys(m).filter(key=>m.inventory[key]>0);
+   const receiver=keys.map(key=>this.transportTarget(m,key,direct)).find(Boolean);
+   route={...outlet,label:'Facing output'};
+   if(receiver)route={x:receiver.x,y:receiver.y,label:'Available receiver'};
+   blocked=keys.length>0&&!receiver&&m.kind!=='hopper';
+  }else if(m.kind==='pump'||m.kind==='condenser'){
+   const {x,y}=this.outlet(m,m.kind==='pump'?9:5),g=this.world;
+   blocked=!g.inside(x,y)||g.at(x,y)!==T.AIR||(m.kind==='pump'&&!!g.blocks[y*W+x]);
+   route={x,y,label:'Outlet'};
+  }
+  let condition=lastAction;
+  if(m.safetyHold)condition='Safety shutdown';
+  else if(m.autoHold)condition='Automation standby';
+  else if(demand&&!this.power().online)condition='Insufficient power';
+  else if(blocked||(!route&&/^(Outlet|Output) blocked$/.test(lastAction)))condition='Output blocked';
+  else if(lastAction==='Outlet blocked')condition='Outlet clear';
+  else if(full)condition='Buffer full';
+  else if(logistics&&!used)condition='Waiting for material';
+  return {condition,lastAction,used,demand,route};
+ }
+ pumpWater(m){const {x:outX,y:outY}=this.outlet(m,9),g=this.world;if(!g.inside(outX,outY)||g.at(outX,outY)!==T.AIR||g.blocks[outY*W+outX]){m.lastAction='Outlet blocked';return}
  for(let radius=1;radius<=8;radius++)for(let yy=-radius;yy<=radius;yy++)for(let xx=-radius;xx<=radius;xx++){if(Math.max(Math.abs(xx),Math.abs(yy))!==radius)continue;const sx=m.x+xx,sy=m.y+yy;if(g.at(sx,sy)!==T.WATER)continue;g.set(sx,sy,T.AIR);g.set(outX,outY,T.WATER);this.automated++;m.lastAction='Pumping water';return}m.lastAction='Waiting for water'}
  excavate(m){const g=this.world,depth=m.kind==='deepdrill'?8:4;for(let dy=1;dy<=depth;dy++)for(let dx=-2;dx<=2;dx++){const x=m.x+dx,y=m.y+dy,v=g.at(x,y);if(v!==T.SAND&&v!==T.WET_SAND&&v!==T.STONE&&v!==T.SANDSOIL)continue;if(Math.random()>.4)continue;g.set(x,y,T.AIR);for(const [ox,oy] of [[-3,0],[3,0],[0,-2]])if(g.inside(x+ox,y+oy)&&g.at(x+ox,y+oy)===T.AIR){g.set(x+ox,y+oy,T.SAND);break}m.lastAction='Excavating earth';return}}
  mine(m){const max=m.kind==='deepdrill'?5+this.up.drill:m.kind==='drill'?2+this.up.drill:3,radius=m.kind==='deepdrill'?10:m.kind==='drill'?6:4;let amount=0;for(let k=0;k<max;k++){if(this.quantity(m)>=m.capacity)break;let found=false;for(let dy=-radius;dy<=radius&&!found;dy++)for(let dx=-radius;dx<=radius;dx++)if(dx*dx+dy*dy<=radius*radius&&this.world.at(m.x+dx,m.y+dy)===T.ORE){this.world.set(m.x+dx,m.y+dy,T.AIR);m.inventory.ore++;this.mined++;amount++;found=true;break}if(!found)break}if(m.kind!=='collector')this.excavate(m);m.lastAction=amount?'Mining '+amount+' ore':'Searching for ore';this.output(m,['ore'])}
- logistics(online=true){const moved=new Set();for(const m of this.machines){if(m.autoHold||m.safetyHold||!['belt','filter','hopper'].includes(m.kind)||(m.kind==='filter'&&!online))continue;const [dx,dy]=dirs[m.dir],direct=this.machineAt(m.x+dx*6,m.y+dy*6);const keys=m.kind==='filter'?['gold','crystal']:KEYS;for(const k of keys){if(!m.inventory[k])continue;let to=direct;if((!to||to===m||moved.has(to)||!this.accepts(to,k)||this.quantity(to)>=to.capacity)&&m.smartRoute)to=this.target(m,k);if(!to||to===m||moved.has(to)||to.autoHold||to.safetyHold)continue;if(this.transfer(m,to,k)){moved.add(to);break}}}}
+ logistics(online=true){const moved=new Set();for(const m of this.machines){if(m.autoHold||m.safetyHold||!['belt','filter','hopper'].includes(m.kind)||(m.kind==='filter'&&!online))continue;const outlet=this.outlet(m,6),direct=this.machineAt(outlet.x,outlet.y);for(const k of this.transportKeys(m)){if(!m.inventory[k])continue;const to=this.transportTarget(m,k,direct,moved);if(to&&this.transfer(m,to,k)){moved.add(to);break}}}}
  processSifter(m){this.intake(m,['wet_sand'],5);const n=Math.min(m.inventory.wet_sand,1+this.up.sifting);if(n){m.inventory.wet_sand-=n;m.inventory.residue+=n;this.sifted+=n;this.rp+=n;for(let i=0;i<n;i++)if(Math.random()<.25&&this.quantity(m)<m.capacity){m.inventory.gold++;this.goldProduced++;this.rp+=2}m.lastAction='Sifting '+n+' wet sand'}else m.lastAction='Needs wet sand';this.output(m,['gold']);this.output(m,['residue'])}
  processKiln(m){this.intake(m,['residue'],5);if(m.inventory.residue>0){m.inventory.residue--;m.inventory.burnt_residue++;m.lastAction='Firing residue'}else if(!m.inventory.residue)m.lastAction='Needs residue';this.output(m,['burnt_residue'])}
  processPress(m){this.intake(m,['burnt_residue'],5);if(m.inventory.burnt_residue>=4){m.inventory.burnt_residue-=4;m.inventory.gold++;this.goldProduced++;this.rp+=3;m.lastAction='Pressing gold'}else m.lastAction='Needs 4 burnt residue';this.output(m,['gold'])}
@@ -66,7 +101,7 @@ export class Factory{
  processDistiller(m){this.intake(m,['oil'],5);if(m.inventory.oil>0){m.inventory.oil--;m.inventory.fuel+=2+Math.floor(this.up.petro/2);this.oilRefined++;this.rp+=2;m.lastAction='Distilling oil into fuel'}else m.lastAction='Needs petroleum';this.output(m,['fuel'])}
  processCrystaldrill(m){const collected=this.intake(m,['crystal'],9);if(collected){this.crystalMined++;this.rp+=1;m.lastAction='Recovering quartz crystals'}else m.lastAction='Searching for crystal veins';this.output(m,['crystal'])}
  processExcavator(m){const [dx,dy]=dirs[m.dir],g=this.world;for(let depth=2;depth<=11;depth++)for(let across=-1;across<=1;across++){const x=m.x+dx*depth+(dy?across:0),y=m.y+dy*depth+(dx?across:0);if(!g.inside(x,y)||g.blocks[y*W+x])continue;const t=g.at(x,y);if(t===T.AIR||t===T.ARTIFACT||t===T.METAL)continue;if(t===T.CRYSTAL){this.crystalMined++;this.crystal++;this.rp+=2}else if(t===T.GOLD){this.gold++;this.goldProduced++}else if(t===T.ORE){this.ore++;this.mined++}else if(t===T.SANDSOIL||t===T.STONE||t===T.BASALT){if(g.at(x,y-1)===T.AIR)g.set(x,y-1,T.SAND)}g.set(x,y,T.AIR);this.terrainDug++;m.lastAction='Excavating '+x+', '+y;return}m.lastAction='Tunnel complete / blocked'}
- processCondenser(m){const cell=this.findCell(m,[T.STEAM,T.VAPOUR],7);if(!cell){m.lastAction='Needs steam or vapour';return}const [dx,dy]=dirs[m.dir],x=m.x+dx*5,y=m.y+dy*5;if(!this.world.inside(x,y)||this.world.at(x,y)!==T.AIR){m.lastAction='Outlet blocked';return}this.world.set(cell.x,cell.y,T.AIR);this.world.set(x,y,cell.v===T.STEAM?T.WATER:T.OIL);this.automated++;m.lastAction='Condensing '+(cell.v===T.STEAM?'water':'petroleum')}
+ processCondenser(m){const cell=this.findCell(m,[T.STEAM,T.VAPOUR],7);if(!cell){m.lastAction='Needs steam or vapour';return}const {x,y}=this.outlet(m,5);if(!this.world.inside(x,y)||this.world.at(x,y)!==T.AIR){m.lastAction='Outlet blocked';return}this.world.set(cell.x,cell.y,T.AIR);this.world.set(x,y,cell.v===T.STEAM?T.WATER:T.OIL);this.automated++;m.lastAction='Condensing '+(cell.v===T.STEAM?'water':'petroleum')}
  processStabilizer(m){let cleared=0;for(let dy=-6;dy<=6&&cleared<3;dy++)for(let dx=-6;dx<=6&&cleared<3;dx++){if(dx*dx+dy*dy>36)continue;const x=m.x+dx,y=m.y+dy,v=this.world.at(x,y);if(v===T.LAVA){this.world.set(x,y,T.BASALT);cleared++}else if(v===T.ACID){this.world.set(x,y,T.SILT);cleared++}else if(v===T.FIRE){this.world.set(x,y,T.STEAM);cleared++}}m.lastAction=cleared?'Contained '+cleared+' hazards':'Defence field stable'}
  processSurveyor(m){if(this.cycle%30!==0)return;const r=25+5*this.up.survey;let found=null;for(let dy=-r;dy<=r&&!found;dy++)for(let dx=-r;dx<=r;dx++){if(dx*dx+dy*dy>r*r)continue;const x=m.x+dx,y=m.y+dy,v=this.world.at(x,y);if(v!==T.ARTIFACT&&v!==T.CRYSTAL&&v!==T.OIL)continue;const key=x+','+y;if(this.surveys.some(s=>s.x===x&&s.y===y))continue;found={x,y,type:v===T.ARTIFACT?'relic':v===T.CRYSTAL?'crystal':'oil'};break}if(found){this.surveys.push(found);if(this.surveys.length>90)this.surveys.shift();this.rp+=6;this.pendingEvents.push('Survey discovered '+found.type+' at '+found.x+', '+found.y);m.lastAction='Survey marker acquired'}else m.lastAction='Searching beneath the surface'}
  repair(m){if(!this.machines.includes(m))return 'Machine not found';const damage=Math.max(0,100-(m.integrity??100));if(!damage)return 'Machine already at full integrity';const cost=Math.max(12,Math.ceil(damage*2));if(this.credits<cost)return 'Repair requires $'+cost+' credits';this.credits-=cost;this.expenses+=cost;m.integrity=100;this.world.dirty=true;return m.kind+' repaired for $'+cost}
