@@ -33,7 +33,7 @@ Added a procedural engineer sprite atlas for idle, walking, jumping and damage s
 
 ## Stage 4.3: Mobile input and frame pacing (Alpha 0.29)
 
-Touch jump and joystick up queue a jump for the player physics step, with a short buffer for presses just before landing. Auto performance starts at Balanced on touch-first devices and reduces workload when frame cadence or JavaScript timing indicates sustained slowdown. Save format is unchanged. Physical Android validation remains open.
+Touch jump and joystick up queue a jump for the player physics step, with a short buffer for presses just before landing. Auto performance starts at Balanced on touch-first devices and reduces workload when frame cadence or JavaScript timing indicates sustained slowdown. Save format is unchanged. Physical Android validation remains open. Alpha 0.29.1 creates the vector engineer only when the animated sprite is unavailable.
 
 ## Stage 5: Worker evaluation (planned)
 

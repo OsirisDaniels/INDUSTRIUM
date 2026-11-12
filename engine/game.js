@@ -156,10 +156,8 @@ function startPhaser(){
    hybridGraphics=this.add.graphics().setDepth(3);
    structureGraphics=this.add.graphics().setDepth(4);
    fxGraphics=this.add.graphics().setDepth(6);
-   playerGraphics=this.add.graphics().setDepth(8);
    engineerSprite=createEngineerSprite(this,player);
-   if(engineerSprite)playerGraphics.setVisible(false);
-   playerGraphics.setVisible(true);
+   playerGraphics=engineerSprite?null:this.add.graphics().setDepth(8);
    this.cameras.main.setBounds(0,0,WIDTH,HEIGHT).setZoom(targetZoom).centerOn(240,350);
    this.scale.on('resize',()=>{clampCamera();status()});
    let pinch=0,pinchCenter=null;
@@ -199,7 +197,9 @@ function startPhaser(){
 
 
    this.input.addPointer(2);
-   renderTerrain();renderMachines();player.draw(playerGraphics,0);status();
+   renderTerrain();renderMachines();
+   if(engineerSprite)engineerSprite.update(0);else player.draw(playerGraphics,0);
+   status();
    $('loading').classList.add('hide');
    $('engine').textContent='Phaser '+Phaser.VERSION+' · '+(this.game.renderer.type===Phaser.WEBGL?'WebGL':'Canvas');
    notice('Phaser scene ready. Select a material or machine, then tap the world.');
