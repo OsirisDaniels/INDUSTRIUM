@@ -10,13 +10,13 @@ import {createCore} from './core.js?v=0233';
 import {createCoreUI} from './core-ui.js?v=0230';
 import {createPerformance} from './performance.js?v=0290';
 import {createSound} from './sound.js?v=0231';
-import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0300';
+import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement,drawMachineRoute} from './visuals.js?v=0310';
 import {createGameShell} from './shell.js?v=0233';
 import {createMigration} from './migration.js?v=0250';
 import {Dynamics} from './dynamics.js?v=0120';
-import {createOperations} from './operations.js?v=0100';
+import {createOperations} from './operations.js?v=0310';
 import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=0242';
-import {Factory,PRICES,DEMAND,ROTATABLE_MACHINES,COLORS as MACHINE_COLORS} from '../js/factory.js?v=0300';
+import {Factory,PRICES,DEMAND,ROTATABLE_MACHINES,COLORS as MACHINE_COLORS} from '../js/factory.js?v=0310';
 import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-final';
 
 // Phaser owns the game scene, graphics texture, camera, pointer input and update loop.
@@ -33,7 +33,7 @@ try{spriteMode=localStorage.getItem('industrium-sprites')!=='off'}catch(e){}
 try{hybrid.enabled=localStorage.getItem('industrium-hybrid')!=='off';hybrid.detail=localStorage.getItem('industrium-hybrid-detail')||'auto'}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100);sound.setAmbience(localStorage.getItem('industrium-ambience')!=='off')}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0,previousUpdate=0;let engineerSprite=null,industrialSprites=null,spriteMode=true,shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,buildCell=null,buildDirection=0,lastFrame=0,acc=0,ops=0;
+let lastRouteKey='',lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0,previousUpdate=0;let engineerSprite=null,industrialSprites=null,spriteMode=true,shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,buildCell=null,buildDirection=0,lastFrame=0,acc=0,ops=0;
 const notice=s=>{const el=$('notice');if(el.textContent!==s)el.textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
 const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
@@ -52,6 +52,15 @@ function status(){
  $('worldMode').textContent=mode==='build'?'CONSTRUCTION':mode==='paint'?'EXCAVATION':mode==='inspect'?'MACHINE INSPECTOR':mode==='walk'?'ON FOOT':'CAMERA CONTROL';
  $('worldTime').textContent='CYCLE '+Math.max(1,Math.floor(world.tick/900)+1);
  $('playerTitle').textContent=player.style.toUpperCase()+' 01';$('playerStatus').textContent='HP '+Math.round(player.health)+' · Energy '+Math.round(player.stamina);
+ updateMachineInspector();
+}
+function updateMachineInspector(){
+ const visible=!$('gameSheet').hidden&&!$('operationsBody').hidden&&!$('tabInspector').closest('[data-section]').hidden&&$('tabInspector').classList.contains('active');
+ const m=(mode==='inspect'||visible)?operations?.selection():null;
+ const info=m?factory.diagnose(m):null,route=info?.route;
+ if(visible)operations?.updateInspector(info);
+ const key=m?[m.x,m.y,route?.x,route?.y,info.condition==='Output blocked'].join(':'):'';
+ if(overlayGraphics&&key!==lastRouteKey){lastRouteKey=key;drawMachineRoute(overlayGraphics,m,route,info?.condition)}
 }
 function refreshButtons(){
  if(mode!=='build')buildCell=null;
@@ -162,7 +171,7 @@ function editTerrain(p,first){
 function interact(pointer){
  const p=worldPoint(pointer);if(!valid(p.x,p.y))return;
  if(mode==='walk'){player.walkTo(p.x);sound.play('select');return}
- if(mode==='inspect'){sound.play('inspect');const m=factory.machineAt(p.x,p.y);operations?.inspect(m);if(m){coreUI?.hide();shell?.openSheet('industry',true)}notice(m?(CATALOG[m.kind]?.title||m.kind)+' · '+(m.lastAction||'Ready')+' · Health '+(m.integrity??100)+'%':world.region(p.x).title+' · material '+world.at(p.x,p.y));return}
+ if(mode==='inspect'){sound.play('inspect');const m=factory.machines.find(m=>m.x===p.x&&m.y===p.y)||factory.machineAt(p.x,p.y);operations?.inspect(m);if(m){coreUI?.hide();shell?.openSheet('industry',true)}updateMachineInspector();notice(m?(CATALOG[m.kind]?.title||m.kind)+' · '+(m.lastAction||'Ready')+' · Health '+(m.integrity??100)+'%':world.region(p.x).title+' · material '+world.at(p.x,p.y));return}
  if(mode==='build'){
   if(pointer.wasTouch){buildCell=p;refreshBuildControls()}
   else placeBuilding(p);
@@ -179,7 +188,7 @@ function startPhaser(){
    terrain=this.add.image(0,0,'planet-terrain').setOrigin(0,0).setScale(SCALE).setDepth(0);
    buildGraphics=this.add.graphics().setDepth(5);
    industrialSprites=createIndustrialSprites(this,factory);
-   overlayGraphics=this.add.graphics().setDepth(7);
+   overlayGraphics=this.add.graphics().setDepth(10);
    previewGraphics=this.add.graphics().setDepth(9);
    ambienceGraphics=this.add.graphics().setDepth(2);
    hybridGraphics=this.add.graphics().setDepth(3);

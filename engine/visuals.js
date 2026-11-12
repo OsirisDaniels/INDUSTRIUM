@@ -1,6 +1,6 @@
 // INDUSTRIUM Alpha 0.15: deterministic hybrid pixel-terrain and vector-machine art.
 import {W,H,T,COLORS,REGIONS} from '../js/world.js?v=080-frontiers-final';
-import {COLORS as MACHINE_COLOURS,DEMAND,ROTATABLE_MACHINES} from '../js/factory.js?v=0300';
+import {COLORS as MACHINE_COLOURS,DEMAND,ROTATABLE_MACHINES} from '../js/factory.js?v=0310';
 const hash=(x,y,seed=0)=>{let n=Math.imul(x+seed,374761393)+Math.imul(y+seed*3,668265263);n=Math.imul(n^(n>>>13),1274126177);return(n^(n>>>16))>>>0};
 const clamp=v=>Math.max(0,Math.min(255,v|0));
 const water=new Set([T.WATER,T.OIL,T.LAVA,T.ACID]);
@@ -165,4 +165,17 @@ export function drawPlacement(g,{mode,cell,brush,material,building,factory,world
  }
  if(mode==='inspect'){g.lineStyle(1,0xd9f6ff,.85);g.strokeCircle(cx,cy,12)}
  return null;
+}
+
+export function drawMachineRoute(g,m,route,condition){
+ g.clear();
+ if(!m)return;
+ const color=condition==='Output blocked'?0xff766e:0x81eacd,x=m.x*4,y=m.y*4;
+ g.lineStyle(2,color,.95);g.strokeCircle(x,y,17);
+ if(!route)return;
+ const tx=route.x*4,ty=route.y*4,angle=Math.atan2(ty-y,tx-x);
+ g.lineBetween(x,y,tx,ty);
+ g.lineBetween(tx,ty,tx-9*Math.cos(angle-.5),ty-9*Math.sin(angle-.5));
+ g.lineBetween(tx,ty,tx-9*Math.cos(angle+.5),ty-9*Math.sin(angle+.5));
+ g.strokeCircle(tx,ty,5);
 }
