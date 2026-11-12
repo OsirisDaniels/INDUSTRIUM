@@ -154,3 +154,10 @@ body{background:#060d16}
 /* Alpha 0.24 hybrid renderer preferences: compact and touch-friendly. */
 #hybridDetail{max-width:160px;min-width:112px;background:#12333b;color:#e8fff5;border:1px solid #55867b;border-radius:9px;padding:9px 10px;font:inherit}
 #hybridToggle{min-width:95px}
+
+.buildControls{position:fixed;left:50%;bottom:calc(174px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:15;width:min(calc(100% - 20px),400px);display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;background:#0c2431f5;border:1px solid #548b82;border-radius:12px}
+.buildControls[hidden],.buildControls button[hidden]{display:none}
+.buildControls button{min-height:44px;flex:1;white-space:nowrap}
+.buildControls #buildStatus{flex-basis:100%;padding:2px 4px;font-size:12px;color:#dbf2ec}
+.buildControls #buildConfirm:not(:disabled){background:#207b64;color:#fff;border-color:#58c7a7}
+@media(max-height:650px){.buildControls{bottom:calc(140px + env(safe-area-inset-bottom))}}

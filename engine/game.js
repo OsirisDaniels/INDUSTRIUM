@@ -10,13 +10,13 @@ import {createCore} from './core.js?v=0233';
 import {createCoreUI} from './core-ui.js?v=0230';
 import {createPerformance} from './performance.js?v=0290';
 import {createSound} from './sound.js?v=0231';
-import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0260';
+import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0300';
 import {createGameShell} from './shell.js?v=0233';
 import {createMigration} from './migration.js?v=0250';
 import {Dynamics} from './dynamics.js?v=0120';
 import {createOperations} from './operations.js?v=0100';
 import {World,W,H,T,COLORS,REGIONS} from '../js/world.js?v=0242';
-import {Factory,PRICES,DEMAND,COLORS as MACHINE_COLORS} from '../js/factory.js?v=0233';
+import {Factory,PRICES,DEMAND,ROTATABLE_MACHINES,COLORS as MACHINE_COLORS} from '../js/factory.js?v=0300';
 import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-final';
 
 // Phaser owns the game scene, graphics texture, camera, pointer input and update loop.
@@ -25,7 +25,7 @@ import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-fina
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
 const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory),sound=createSound(),perfController=createPerformance(window.matchMedia('(pointer: coarse)').matches);
 const living=new LivingWorld(world,factory,dynamics),intelligence=new Intelligence(world,factory,dynamics,living),autonomy=new Autonomy(factory,intelligence),player=createPlayer(world),core=createCore(factory,dynamics,living,intelligence),hybrid=createHybrid(world,factory,dynamics),structures=createStructures(world,factory);
-let coreUI,lastCoreRender=0,playerGraphics,lastPlayerDraw=0,lastFootstep=0,lastHazardSound=0,joyAxis=0,joyPointer=null,joyJumpLatched=false,pressStart=null,touchGesture=false;
+let coreUI,lastCoreRender=0,playerGraphics,lastPlayerDraw=0,lastFootstep=0,lastHazardSound=0,joyAxis=0,joyPointer=null,joyJumpLatched=false;
 try{perfController.setMode(localStorage.getItem('industrium-performance')||'auto')}catch(e){}
 try{world.chunked=localStorage.getItem('industrium-chunks')!=='off'}catch(e){}
 try{structures.enabled=localStorage.getItem('industrium-structures')!=='off'}catch(e){}
@@ -33,7 +33,7 @@ try{spriteMode=localStorage.getItem('industrium-sprites')!=='off'}catch(e){}
 try{hybrid.enabled=localStorage.getItem('industrium-hybrid')!=='off';hybrid.detail=localStorage.getItem('industrium-hybrid-detail')||'auto'}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100);sound.setAmbience(localStorage.getItem('industrium-ambience')!=='off')}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0,previousUpdate=0;let engineerSprite=null,industrialSprites=null,spriteMode=true,shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
+let lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0,previousUpdate=0;let engineerSprite=null,industrialSprites=null,spriteMode=true,shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,buildCell=null,buildDirection=0,lastFrame=0,acc=0,ops=0;
 const notice=s=>{const el=$('notice');if(el.textContent!==s)el.textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
 const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
@@ -54,6 +54,8 @@ function status(){
  $('playerTitle').textContent=player.style.toUpperCase()+' 01';$('playerStatus').textContent='HP '+Math.round(player.health)+' · Energy '+Math.round(player.stamina);
 }
 function refreshButtons(){
+ if(mode!=='build')buildCell=null;
+ refreshBuildControls();
  for(const b of document.querySelectorAll('[data-material]'))b.classList.toggle('active',mode==='paint'&&material===Number(b.dataset.material));
  for(const b of document.querySelectorAll('[data-machine]'))b.classList.toggle('active',mode==='build'&&building===b.dataset.machine);
  for(const id of ['paint','pan','walk','inspect'])$(id).classList.toggle('active',mode===id);
@@ -64,8 +66,11 @@ function refreshButtons(){
 function makeTools(){
  const mat=$('materials'),machines=$('factoryTools');
  for(const [name,id] of materialNames){const b=document.createElement('button');b.textContent=name;b.dataset.material=id;b.dataset.restricted=restrictedMaterials.has(id)?'1':'0';if(id>=0&&COLORS[id]){const color=COLORS[id];b.style.borderLeft='4px solid rgb('+color.join(',')+')'}b.onclick=()=>{if(!factory.creative&&id!==-1){notice('Career Mode: free material spawning is locked. Use Excavate or switch to Creative.');sound.play('error');return}material=id;mode='paint';refreshButtons();sound.play('select');notice(name+' tool selected')};mat.append(b)}
- for(const kind of buildNames){const b=document.createElement('button');b.textContent=(CATALOG[kind]?.title||kind)+' · $'+PRICES[kind];b.dataset.machine=kind;b.dataset.price=PRICES[kind];b.dataset.category=CATALOG[kind]?.category||'Other';b.onclick=()=>{if(!unlocked(kind,factory)){notice((CATALOG[kind]?.title||kind)+' locked: '+unlockHint(kind));shell?.refreshCatalog();return}building=kind;mode='build';refreshButtons();sound.play('select');notice('Tap the world to place '+(CATALOG[kind]?.title||kind))};machines.append(b)}
- for(const id of ['paint','pan','walk','inspect'])$(id).onclick=()=>{if(id==='paint'&&!factory.creative)material=-1;if(id==='walk')player.follow=true;mode=id;sound.play('select');refreshButtons();notice(id==='pan'?'Drag with one finger to pan. Pinch with two to zoom.':id==='walk'?'Use the thumb joystick and JUMP, or tap to walk.':id==='inspect'?'Tap machinery to inspect':'Tap or drag to edit terrain')};
+ for(const kind of buildNames){const b=document.createElement('button');b.textContent=(CATALOG[kind]?.title||kind)+' · $'+PRICES[kind];b.dataset.machine=kind;b.dataset.price=PRICES[kind];b.dataset.category=CATALOG[kind]?.category||'Other';b.onclick=()=>{if(!unlocked(kind,factory)){notice((CATALOG[kind]?.title||kind)+' locked: '+unlockHint(kind));shell?.refreshCatalog();return}building=kind;buildCell=null;buildDirection=0;mode='build';refreshButtons();sound.play('select');notice('Touch the world to preview '+(CATALOG[kind]?.title||kind))};machines.append(b)}
+ for(const id of ['paint','pan','walk','inspect'])$(id).onclick=()=>{if(id==='paint'&&!factory.creative)material=-1;if(id==='walk'||id==='pan')player.follow=id==='walk';mode=id;sound.play('select');refreshButtons();notice(id==='pan'?'Drag with one finger to pan. Pinch with two to zoom.':id==='walk'?'Use the thumb joystick and JUMP, or tap to walk.':id==='inspect'?'Tap machinery to inspect':'Tap or drag to edit terrain')};
+ $('buildConfirm').onclick=()=>{if(mode==='build'&&buildCell)placeBuilding(buildCell)};
+ $('buildRotate').onclick=()=>{buildDirection=(buildDirection+1)%4;refreshBuildControls()};
+ $('buildCancel').onclick=()=>{buildCell=null;hoverCell=null;refreshBuildControls()};
  $('pause').onclick=()=>{paused=!paused;sound.play(paused?'pause':'resume');refreshButtons()};
  $('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;sound.play('click');refreshButtons()};
  $('effects').onclick=()=>{showEffects=!showEffects;$('effects').classList.toggle('active',showEffects);$('effects').textContent='Effects '+(showEffects?'On':'Off');if(!showEffects){fxGraphics?.clear();hybridGraphics?.clear();structureGraphics?.clear()}};
@@ -115,9 +120,9 @@ function makeTools(){
 function setZoom(mult){if(!scene)return;targetZoom=Phaser.Math.Clamp(targetZoom*mult,.65,4.5);status()}
 function clampCamera(){if(!scene)return;const c=scene.cameras.main,visW=c.width/c.zoom,visH=c.height/c.zoom;if(visW>=WIDTH)c.centerOn(WIDTH/2,c.midPoint.y);if(visH>=HEIGHT)c.centerOn(c.midPoint.x,HEIGHT/2);c.setScroll(Phaser.Math.Clamp(c.scrollX,0,Math.max(0,WIDTH-visW)),Phaser.Math.Clamp(c.scrollY,0,Math.max(0,HEIGHT-visH)))}
 function saveEngine(silent=false){try{if(!silent)sound.play('save');localStorage.setItem(KEY,JSON.stringify({grid:Array.from(world.grid),seed:world.seed,factory:factory.serialize(),environment:dynamics.snapshot(),living:living.snapshot(),intelligence:intelligence.snapshot(),autonomy:autonomy.snapshot(),player:player.snapshot(),structures:structures.snapshot(),savedAt:Date.now()}));if(!silent)notice('Factory saved');return true}catch(e){notice('Save failed: '+e.message);return false}}
-function newWorld(seed){const creative=factory.creative,weather=factory.weather;world.generate(seed);factory.load({creative,weather});dynamics.reset();living.reset();intelligence.reset();autonomy.reset();player.spawn();core.reset();hybrid.reset();structures.reset();world.dirty=true;saveEngine(true);renderTerrain();renderMachines();status();operations?.render();migration?.render();coreUI?.render();shell?.refreshCatalog();shell?.updateMenu();notice('New planet ready · Seed '+world.seed)}
+function newWorld(seed){buildCell=null;refreshBuildControls();const creative=factory.creative,weather=factory.weather;world.generate(seed);factory.load({creative,weather});dynamics.reset();living.reset();intelligence.reset();autonomy.reset();player.spawn();core.reset();hybrid.reset();structures.reset();world.dirty=true;saveEngine(true);renderTerrain();renderMachines();status();operations?.render();migration?.render();coreUI?.render();shell?.refreshCatalog();shell?.updateMenu();notice('New planet ready · Seed '+world.seed)}
 function travel(x,y){if(!scene)return;scene.cameras.main.centerOn(x*SCALE,y*SCALE);clampCamera();status()}
-function loadEngine(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||!world.import(s.grid))return false;world.seed=s.seed||0;factory.load(s.factory||{});dynamics.restore(s.environment);living.restore(s.living);intelligence.restore(s.intelligence);autonomy.restore(s.autonomy);player.restore(s.player);core.reset();hybrid.reset();structures.restore(s.structures);return true}catch(e){return false}}
+function loadEngine(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||!world.import(s.grid))return false;buildCell=null;refreshBuildControls();world.seed=s.seed||0;factory.load(s.factory||{});dynamics.restore(s.environment);living.restore(s.living);intelligence.restore(s.intelligence);autonomy.restore(s.autonomy);player.restore(s.player);core.reset();hybrid.reset();structures.restore(s.structures);return true}catch(e){return false}}
 function renderTerrain(time=worldTime){paintTerrain(texture,world,time,!batterySaver)}
 function drawMiniMap(force=false){
  if(!miniOpen||!scene||!texture||(!force&&worldTime-lastMini<800))return;lastMini=worldTime;
@@ -131,13 +136,37 @@ function drawMiniMap(force=false){
 function renderMachines(time=0){if(spriteMode&&industrialSprites){buildGraphics?.setVisible(false);industrialSprites.draw(time,scene?.cameras.main,perfController.name);return}buildGraphics?.setVisible(true);const cam=scene?.cameras.main,view=cam?{left:cam.scrollX/SCALE,top:cam.scrollY/SCALE,right:(cam.scrollX+cam.width/cam.zoom)/SCALE,bottom:(cam.scrollY+cam.height/cam.zoom)/SCALE}:null;drawMachines(buildGraphics,factory,time,view,perfController.name)}
 function renderEffects(time){drawAtmosphere(fxGraphics,world,time,showEffects,showGrid,scene?.cameras.main.zoom||1,factory.weather?living.weather:[]);if(hybridGraphics){if(showEffects&&hybrid.enabled)hybrid.draw(hybridGraphics,time,hybrid.detail==='auto'?perfController.name:hybrid.detail,factory.weather?living.weather:[],scene?.cameras.main);else hybridGraphics.clear()}if(structureGraphics){if(showEffects&&structures.enabled)structures.draw(structureGraphics,scene?.cameras.main,hybrid.detail);else structureGraphics.clear()}if(ambienceGraphics)ambienceGraphics.clear()}
 function worldPoint(pointer){const p=scene.cameras.main.getWorldPoint(pointer.x,pointer.y);return{x:Math.floor(p.x/SCALE),y:Math.floor(p.y/SCALE)}}
-function interact(pointer,first){
- const p=worldPoint(pointer);hoverCell=p;if(!valid(p.x,p.y))return;
- if(mode==='pan'){if(lastPointer){const c=scene.cameras.main;c.scrollX-=(pointer.x-lastPointer.x)/c.zoom;c.scrollY-=(pointer.y-lastPointer.y)/c.zoom;clampCamera()}lastPointer={x:pointer.x,y:pointer.y};return}
- if(mode==='walk'){if(first){player.walkTo(p.x);sound.play('select')}return}
- if(mode==='inspect'){if(!first)return;sound.play('inspect');const m=factory.machineAt(p.x,p.y);operations?.inspect(m);if(m){coreUI?.hide();shell?.openSheet('industry',true)}notice(m?(CATALOG[m.kind]?.title||m.kind)+' · '+(m.lastAction||'Ready')+' · Health '+(m.integrity??100)+'%':world.region(p.x).title+' · material '+world.at(p.x,p.y));return}
- if(mode==='build'){if(!first)return;const result=factory.place(building,p.x,p.y);sound.play(result?'error':['generator','solar','wind','battery'].includes(building)?'power':['drill','deepdrill','oilrig','excavator'].includes(building)?'drill':'build');notice(result||'Built '+(CATALOG[building]?.title||building));renderMachines();status();operations?.render();return}
- if(mode==='paint'){if(!factory.creative&&material!==-1){if(first){notice('Career Mode cannot spawn material. Select Excavate instead.');sound.play('error')}return}if(material===-1){sound.play('dig');const n=factory.dig(p.x,p.y,brush);if(first)notice('Excavated '+n+' terrain cells')}else{sound.play(material===T.WATER?'water':material===T.LAVA?'lava':material===T.STEAM?'steam':'paint');world.paint(p.x,p.y,material,brush)}}
+function refreshBuildControls(){
+ const active=mode==='build'&&buildCell!==null;
+ $('buildControls').hidden=!active;
+ if(!active)return;
+ const reason=factory.canPlace(building,buildCell.x,buildCell.y);
+ $('buildConfirm').disabled=!!reason;
+ $('buildStatus').textContent=reason||((CATALOG[building]?.title||building)+' · $'+PRICES[building]);
+ $('buildRotate').hidden=!ROTATABLE_MACHINES.has(building);
+ $('buildRotate').textContent='Rotate '+['→','↓','←','↑'][buildDirection];
+}
+function placeBuilding(p){
+ const result=factory.place(building,p.x,p.y,buildDirection);
+ sound.play(result?'error':['generator','solar','wind','battery'].includes(building)?'power':['drill','deepdrill','oilrig','excavator'].includes(building)?'drill':'build');
+ notice(result||'Built '+(CATALOG[building]?.title||building));
+ if(!result){buildCell=null;hoverCell=null;renderMachines();status();operations?.render()}
+ refreshBuildControls();
+}
+function editTerrain(p,first){
+ if(!valid(p.x,p.y))return;
+ if(!factory.creative&&material!==-1){if(first){notice('Career Mode cannot spawn material. Select Excavate instead.');sound.play('error')}return}
+ if(material===-1){if(first)sound.play('dig');const n=factory.dig(p.x,p.y,brush);if(first)notice('Excavated '+n+' terrain cells')}
+ else{if(first)sound.play(material===T.WATER?'water':material===T.LAVA?'lava':material===T.STEAM?'steam':'paint');world.paint(p.x,p.y,material,brush)}
+}
+function interact(pointer){
+ const p=worldPoint(pointer);if(!valid(p.x,p.y))return;
+ if(mode==='walk'){player.walkTo(p.x);sound.play('select');return}
+ if(mode==='inspect'){sound.play('inspect');const m=factory.machineAt(p.x,p.y);operations?.inspect(m);if(m){coreUI?.hide();shell?.openSheet('industry',true)}notice(m?(CATALOG[m.kind]?.title||m.kind)+' · '+(m.lastAction||'Ready')+' · Health '+(m.integrity??100)+'%':world.region(p.x).title+' · material '+world.at(p.x,p.y));return}
+ if(mode==='build'){
+  if(pointer.wasTouch){buildCell=p;refreshBuildControls()}
+  else placeBuilding(p);
+ }
 }
 function startPhaser(){
  if(!window.Phaser){$('error').textContent='Phaser could not load. Check your connection and try reloading.';$('loading').textContent='Game engine unavailable';return}
@@ -160,39 +189,80 @@ function startPhaser(){
    playerGraphics=engineerSprite?null:this.add.graphics().setDepth(8);
    this.cameras.main.setBounds(0,0,WIDTH,HEIGHT).setZoom(targetZoom).centerOn(240,350);
    this.scale.on('resize',()=>{clampCamera();status()});
-   let pinch=0,pinchCenter=null;
+   const touches=new Map(),stroke=new Map();
+   let press=null,pinch=null,gesturing=false;
+   const moveCamera=(dx,dy)=>{
+    if(player.follow){player.follow=false;refreshButtons()}
+    const cam=this.cameras.main;
+    cam.scrollX-=dx/cam.zoom;cam.scrollY-=dy/cam.zoom;clampCamera();
+   };
+   const pinchSample=()=>{
+    const [a,b]=touches.values();
+    return {distance:Math.hypot(a.x-b.x,a.y-b.y),x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+   };
+   const stageTerrain=p=>{
+    const cell=worldPoint(p);
+    if(valid(cell.x,cell.y))stroke.set(cell.y*W+cell.x,cell);
+   };
+   const cancelPress=()=>{press=null;stroke.clear();hoverCell=null};
    this.keys=this.input.keyboard?.addKeys('W,A,D,UP,LEFT,RIGHT,SPACE');
    this.input.on('pointerdown',p=>{
     sound.unlock();
-    const a=this.input.pointer1,b=this.input.pointer2;
-    if(a.isDown&&b.isDown){touchGesture=true;pinch=0;pinchCenter=null;pressStart=null;lastPointer=null;hoverCell=null;previewGraphics?.clear();return}
-    touchGesture=false;pressStart={x:p.x,y:p.y};drag=mode==='pan'||mode==='paint';lastPointer={x:p.x,y:p.y};
-    if(mode==='paint')interact(p,true);
+    if(p.wasTouch){
+     touches.set(p.id,p);
+     if(touches.size>=2){gesturing=true;pinch=pinchSample();cancelPress();return}
+     if(gesturing)return;
+    }
+    press={id:p.id,mode,x:p.x,y:p.y,lastX:p.x,lastY:p.y,panning:mode==='pan'};
+    if(mode==='paint'){
+     if(p.wasTouch){stageTerrain(p);hoverCell=worldPoint(p)}
+     else editTerrain(worldPoint(p),true);
+    }
    });
    this.input.on('pointermove',p=>{
-    const a=this.input.pointer1,b=this.input.pointer2;
-    if(a.isDown&&b.isDown){
-     const d=Phaser.Math.Distance.Between(a.x,a.y,b.x,b.y);
-     const center={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
-     if(pinch>0&&d>4)targetZoom=Phaser.Math.Clamp(targetZoom*d/pinch,.65,4.5);
-     if(pinchCenter){const cam=this.cameras.main;cam.scrollX-=(center.x-pinchCenter.x)/cam.zoom;cam.scrollY-=(center.y-pinchCenter.y)/cam.zoom;clampCamera()}
-     pinch=d;pinchCenter=center;touchGesture=true;pressStart=null;drag=false;hoverCell=null;return;
+    if(touches.size>=2){
+     if(!touches.has(p.id))return;
+     const next=pinchSample();
+     if(pinch&&pinch.distance>4&&next.distance>4){
+      targetZoom=Phaser.Math.Clamp(targetZoom*next.distance/pinch.distance,.65,4.5);
+      moveCamera(next.x-pinch.x,next.y-pinch.y);
+     }
+     pinch=next;return;
     }
-    pinch=0;pinchCenter=null;
-    if(p.isDown&&pressStart&&Math.hypot(p.x-pressStart.x,p.y-pressStart.y)>13&&mode!=='pan'&&mode!=='paint'){
-     // Dragging moves the camera even when a machine or inspection tool is selected.
-     const cam=this.cameras.main;cam.scrollX-=(p.x-lastPointer.x)/cam.zoom;cam.scrollY-=(p.y-lastPointer.y)/cam.zoom;clampCamera();touchGesture=true;lastPointer={x:p.x,y:p.y};hoverCell=null;return;
+    if(gesturing)return;
+    if(!press||press.id!==p.id||!p.isDown){if(!p.wasTouch)hoverCell=worldPoint(p);return}
+    if(press.mode!==mode){cancelPress();return}
+    if(mode!=='paint'&&Math.hypot(p.x-press.x,p.y-press.y)>=13)press.panning=true;
+    if(press.panning){
+     moveCamera(p.x-press.lastX,p.y-press.lastY);hoverCell=null;
+     press.lastX=p.x;press.lastY=p.y;return;
     }
     hoverCell=worldPoint(p);
-    if(p.isDown&&mode==='pan'){interact(p,false)}
-    else if(p.isDown&&mode==='paint'&&!touchGesture)interact(p,false);
+    if(mode==='paint'){
+     if(p.wasTouch)stageTerrain(p);
+     else editTerrain(hoverCell,false);
+    }
    });
-   this.input.on('pointerup',p=>{
-    if(!touchGesture&&pressStart&&mode!=='pan'&&mode!=='paint'&&Math.hypot(p.x-pressStart.x,p.y-pressStart.y)<13)interact(p,true);
-    if(!this.input.pointer1.isDown&&!this.input.pointer2.isDown){touchGesture=false;pinch=0;pinchCenter=null}
-    drag=false;pressStart=null;lastPointer=null;hoverCell=null;
-   });
-   this.input.on('gameout',()=>{drag=false;pressStart=null;touchGesture=false;lastPointer=null;hoverCell=null;previewGraphics?.clear()});
+   const finishPointer=(p,cancelled=false)=>{
+    if(p.wasTouch)touches.delete(p.id);
+    if(gesturing){
+     if(!touches.size){gesturing=false;pinch=null}
+     else if(touches.size>=2)pinch=pinchSample();
+     return;
+    }
+    if(!press||press.id!==p.id)return;
+    if(!cancelled&&press.mode===mode&&!press.panning){
+     if(mode==='paint'&&p.wasTouch){
+      stageTerrain(p);
+      let first=true;
+      for(const cell of stroke.values()){editTerrain(cell,first);first=false}
+     }else if(mode!=='paint'&&Math.hypot(p.x-press.x,p.y-press.y)<13)interact(p);
+    }
+    cancelPress();
+   };
+   this.input.on('pointerup',p=>finishPointer(p,p.event?.type==='touchcancel'));
+   this.input.on('pointerupoutside',p=>finishPointer(p,true));
+   this.input.on('gameout',()=>{touches.clear();gesturing=false;pinch=null;cancelPress()});
    this.input.on('wheel',(_pointer,_objects,_dx,dy)=>{setZoom(dy>0?.9:1.1)});
 
 
@@ -211,12 +281,13 @@ function startPhaser(){
    const frameStart=performanceNow();let simCost=0,renderCost=0;
    const camera=this.cameras.main;
    if(Math.abs(camera.zoom-targetZoom)>.003){camera.setZoom(Phaser.Math.Linear(camera.zoom,targetZoom,Math.min(1,delta*.012)));clampCamera()}
-   const previewKey=hoverCell&&mode!=='pan'?[mode,hoverCell.x,hoverCell.y,brush,material,building,factory.credits,factory.machines.length].join(':'):'';
+   const cell=buildCell||hoverCell;
+   const previewKey=cell&&['build','paint','inspect'].includes(mode)?[mode,cell.x,cell.y,brush,material,building,buildDirection,Math.floor(factory.credits),factory.machines.length].join(':'):'';
    if(previewKey!==lastPreviewKey){
     lastPreviewKey=previewKey;
     if(previewKey){
-     previewReason=drawPlacement(previewGraphics,{mode,cell:hoverCell,brush,material,building,factory,world});
-     const label=$('previewHint');label.hidden=false;
+     previewReason=drawPlacement(previewGraphics,{mode,cell,brush,material,building,factory,world,direction:buildDirection});
+     const label=$('previewHint');label.hidden=!!buildCell;if(buildCell)refreshBuildControls();
      const message=mode==='build'?(previewReason?'BLOCKED · '+previewReason:'READY · '+(CATALOG[building]?.title||building)+' · $'+PRICES[building]):mode==='inspect'?'INSPECT · Tap a machine':'DRAW · '+(materialNames.find(m=>m[1]===material)?.[0]||'Terrain')+' · Brush '+brush;
      if(message!==lastPreviewText){label.textContent=message;lastPreviewText=message}
     }else{previewGraphics?.clear();$('previewHint').hidden=true}
