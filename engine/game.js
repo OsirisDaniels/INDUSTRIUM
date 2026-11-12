@@ -3,12 +3,12 @@ import {createIndustrialSprites} from './sprites.js?v=0270';
 import {createStructures} from './structures.js?v=0250';
 import {createHybrid} from './hybrid.js?v=0280';
 import {Autonomy} from './autonomy.js?v=0233';
-import {createPlayer} from './player.js?v=0280';
+import {createPlayer} from './player.js?v=0290';
 import {LivingWorld} from './living.js?v=0231';
 import {Intelligence} from './intelligence.js?v=0233';
 import {createCore} from './core.js?v=0233';
 import {createCoreUI} from './core-ui.js?v=0230';
-import {createPerformance} from './performance.js?v=0170';
+import {createPerformance} from './performance.js?v=0290';
 import {createSound} from './sound.js?v=0231';
 import {paintTerrain,drawMachines,drawAtmosphere,drawPlacement} from './visuals.js?v=0260';
 import {createGameShell} from './shell.js?v=0233';
@@ -23,7 +23,7 @@ import {CATALOG,unlocked,unlockHint} from '../js/catalog.js?v=080-frontiers-fina
 // INDUSTRIUM's deterministic cellular physics and factory rules are kept as game systems.
 // Engine saves use a separate key so the stable release is never overwritten.
 const $=id=>document.getElementById(id),KEY='industrium-phaser-engine-v1';
-const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory),sound=createSound(),perfController=createPerformance();
+const world=new World(),factory=new Factory(world),dynamics=new Dynamics(world,factory),sound=createSound(),perfController=createPerformance(window.matchMedia('(pointer: coarse)').matches);
 const living=new LivingWorld(world,factory,dynamics),intelligence=new Intelligence(world,factory,dynamics,living),autonomy=new Autonomy(factory,intelligence),player=createPlayer(world),core=createCore(factory,dynamics,living,intelligence),hybrid=createHybrid(world,factory,dynamics),structures=createStructures(world,factory);
 let coreUI,lastCoreRender=0,playerGraphics,lastPlayerDraw=0,lastFootstep=0,lastHazardSound=0,joyAxis=0,joyPointer=null,joyJumpLatched=false,pressStart=null,touchGesture=false;
 try{perfController.setMode(localStorage.getItem('industrium-performance')||'auto')}catch(e){}
@@ -33,7 +33,7 @@ try{spriteMode=localStorage.getItem('industrium-sprites')!=='off'}catch(e){}
 try{hybrid.enabled=localStorage.getItem('industrium-hybrid')!=='off';hybrid.detail=localStorage.getItem('industrium-hybrid-detail')||'auto'}catch(e){}
 try{sound.setEnabled(localStorage.getItem('industrium-sound')!=='off');sound.setVolume(Number(localStorage.getItem('industrium-volume')??35)/100);sound.setAmbience(localStorage.getItem('industrium-ambience')!=='off')}catch(e){}
 const WIDTH=960,HEIGHT=640,SCALE=4;
-let lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0;let engineerSprite=null,industrialSprites=null,spriteMode=true,shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
+let lastPreviewKey='',lastPreviewText='',lastTerrainAt=0,lastMachinesAt=0,lastEffectsAt=0,hoverCell=null,targetZoom=1.4,worldTime=0,previewReason=null,previewGraphics,ambienceGraphics,miniOpen=false,lastMini=0,lastHud=0,previousUpdate=0;let engineerSprite=null,industrialSprites=null,spriteMode=true,shell,migration,operations,hybridGraphics,structureGraphics,fxGraphics,fxClock=0,frameCount=0,perfTime=0,autoSaveTime=0,showEffects=true,showGrid=false,batterySaver=false;let game,scene,texture,terrain,buildGraphics,overlayGraphics,mode='pan',material=-1,building='drill',brush=3,paused=false,speed=1,drag=false,lastPointer=null,lastFrame=0,acc=0,ops=0;
 const notice=s=>{const el=$('notice');if(el.textContent!==s)el.textContent=s};
 const materialNames=[['Sand',T.SAND],['Water',T.WATER],['Stone',T.STONE],['Ore',T.ORE],['Fire',T.FIRE],['Metal',T.METAL],['Steam',T.STEAM],['Wet Sand',T.WET_SAND],['Gold',T.GOLD],['Residue',T.RESIDUE],['Ash',T.BURNT_RESIDUE],['Ice',T.ICE],['Lava',T.LAVA],['Glass',T.GLASS],['Sandsoil',T.SANDSOIL],['Silt',T.SILT],['Oil',T.OIL],['Crystal',T.CRYSTAL],['Basalt',T.BASALT],['Acid',T.ACID],['Vapour',T.VAPOUR],['Snow',T.SNOW],['Artefact',T.ARTIFACT],['Obsidian',T.OBSIDIAN],['Fuel',T.FUEL],['Erase',T.AIR],['Dig',-1]];
 const restrictedMaterials=new Set([T.ORE,T.GOLD,T.WET_SAND,T.RESIDUE,T.BURNT_RESIDUE,T.OIL,T.CRYSTAL,T.FUEL,T.ARTIFACT]);
@@ -93,13 +93,15 @@ function makeTools(){
  $('home').onclick=()=>{if(!scene)return;scene.cameras.main.centerOn(480,350);clampCamera();status()};
  $('undoTool').onclick=()=>{mode='pan';hoverCell=null;previewGraphics?.clear();refreshButtons();notice('Camera control selected')};
  $('followPlayer').onclick=()=>{player.follow=!player.follow;refreshButtons();sound.play('select');notice(player.follow?'Camera follows engineer':'Free camera enabled')};
- $('jumpBtn').onpointerdown=e=>{e.preventDefault();player.jump();sound.play('jump')};
+ const requestJump=()=>{if(mode==='walk'&&!paused)player.jump()};
+ $('jumpBtn').onpointerdown=e=>{e.preventDefault();requestJump()};
+ $('jumpBtn').onclick=e=>{if(e.detail===0)requestJump()};
  const pad=$('joyPad'),knob=$('joyKnob');
- const moveJoy=e=>{const r=pad.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),radius=r.width*.38;joyAxis=Math.max(-1,Math.min(1,dx/radius));knob.style.transform='translate('+Math.round(Math.max(-radius,Math.min(radius,dx)))+'px,'+Math.round(Math.max(-radius,Math.min(radius,dy)))+'px)';if(dy<-radius*.6&&!joyJumpLatched){joyJumpLatched=true;player.jump();sound.play('jump')}if(dy>-radius*.25)joyJumpLatched=false};
+ const moveJoy=e=>{const r=pad.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),radius=r.width*.38;joyAxis=Math.max(-1,Math.min(1,dx/radius));knob.style.transform='translate('+Math.round(Math.max(-radius,Math.min(radius,dx)))+'px,'+Math.round(Math.max(-radius,Math.min(radius,dy)))+'px)';if(dy<-radius*.6&&!joyJumpLatched){joyJumpLatched=true;requestJump()}if(dy>-radius*.25)joyJumpLatched=false};
  pad.addEventListener('pointerdown',e=>{e.preventDefault();joyPointer=e.pointerId;pad.setPointerCapture(e.pointerId);moveJoy(e)});
  pad.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();moveJoy(e)}});
  const releaseJoy=e=>{if(e.pointerId===joyPointer){joyPointer=null;joyAxis=0;joyJumpLatched=false;knob.style.transform='translate(0,0)'}};
- pad.addEventListener('pointerup',releaseJoy);pad.addEventListener('pointercancel',releaseJoy);
+ pad.addEventListener('pointerup',releaseJoy);pad.addEventListener('pointercancel',releaseJoy);pad.addEventListener('lostpointercapture',releaseJoy);
  $('mapToggle').onclick=()=>{miniOpen=!miniOpen;$('miniMapPanel').hidden=!miniOpen;if(miniOpen)drawMiniMap(true)};
  $('miniMapClose').onclick=()=>{miniOpen=false;$('miniMapPanel').hidden=true};
  $('miniMap').onclick=e=>{if(!scene)return;const r=e.currentTarget.getBoundingClientRect(),x=Math.max(0,Math.min(W-1,Math.floor((e.clientX-r.left)/r.width*W))),y=Math.max(0,Math.min(H-1,Math.floor((e.clientY-r.top)/r.height*H)));travel(x,y);notice('Camera moved to '+world.region(x).title)};
@@ -203,6 +205,8 @@ function startPhaser(){
    notice('Phaser scene ready. Select a material or machine, then tap the world.');
   }
   update(time,delta){
+   const elapsed=previousUpdate?time-previousUpdate:delta;
+   previousUpdate=time;
    worldTime=time;
    const frameStart=performanceNow();let simCost=0,renderCost=0;
    const camera=this.cameras.main;
@@ -219,16 +223,16 @@ function startPhaser(){
    }
    if(paused)return;
    const keyLeft=this.keys?.A?.isDown||this.keys?.LEFT?.isDown,keyRight=this.keys?.D?.isDown||this.keys?.RIGHT?.isDown;
-   player.setInput(mode==='walk'?(joyAxis+(keyRight?1:0)-(keyLeft?1:0)):0,false);
-   if(mode==='walk'&&(this.keys?.W?.isDown||this.keys?.UP?.isDown||this.keys?.SPACE?.isDown)&&player.grounded){player.jump();sound.play('jump')}
-   const wasGrounded=player.grounded,oldHealth=player.health;player.step(delta);if(!wasGrounded&&player.grounded)sound.play('land');if(player.health<oldHealth&&time-lastHazardSound>3200){sound.play('warning');lastHazardSound=time}
+   player.setInput(mode==='walk'?(joyAxis+(keyRight?1:0)-(keyLeft?1:0)):0);
+   if(mode==='walk'&&(this.keys?.W?.isDown||this.keys?.UP?.isDown||this.keys?.SPACE?.isDown)&&player.grounded)player.jump();
+   const wasGrounded=player.grounded,oldHealth=player.health;if(player.step(delta))sound.play('jump');if(!wasGrounded&&player.grounded)sound.play('land');if(player.health<oldHealth&&time-lastHazardSound>3200){sound.play('warning');lastHazardSound=time}
    if(mode==='walk'&&player.moving&&time-lastFootstep>320){lastFootstep=time;sound.play('footstep')}
    if(player.follow){camera.centerOn(Phaser.Math.Linear(camera.midPoint.x,player.x*SCALE,.12),Phaser.Math.Linear(camera.midPoint.y,player.y*SCALE-40,.12));clampCamera()}
    if(time-lastPlayerDraw>45){if(engineerSprite)engineerSprite.update(time);else player.draw(playerGraphics,time);lastPlayerDraw=time}
    acc=Math.min(acc+Math.min(delta,100),200);
    const cfg=perfController.config(batterySaver),step=cfg.simStep;let count=0;
    const simStart=performanceNow();while(acc>=step&&count<cfg.steps&&performanceNow()-simStart<12){acc-=step;count++;for(let s=0;s<speed;s++){world.simulate();dynamics.step();if((ops&1)===0)hybrid.step();if(ops%3===0)structures.step();if(++ops%6===0){const actions=autonomy.actions;autonomy.step();if(autonomy.actions>actions)sound.play('automation');factory.operate();living.step();intelligence.step();core.observe();core.refresh();if(factory.pendingEvents.length){const msg=factory.pendingEvents.shift();notice(msg);if(/damage|lost|overheat|warning|failure/i.test(msg))sound.play('warning')}}if(performanceNow()-simStart>12)break}}simCost=performanceNow()-simStart;
-   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();if(coreUI?.open&&time-lastCoreRender>4300){coreUI.render();lastCoreRender=time}lastHud=time}drawMiniMap();sound.step({weather:living.getWeather(player.x),machines:factory.machines.length,nearbyKinds:factory.machines.filter(m=>Math.abs(m.x-player.x)<28&&Math.abs(m.y-player.y)<28&&!m.autoHold&&!m.safetyHold).map(m=>m.kind),moving:player.moving,hot:dynamics.heatPeak>150,now:time});lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time);
+   const renderStart=performanceNow();if(time-lastFrame>65){if(world.dirty&&time-lastTerrainAt>cfg.terrainMs){renderTerrain(time);lastTerrainAt=time}if(time-lastMachinesAt>cfg.machineMs){renderMachines(time);lastMachinesAt=time}if(time-lastEffectsAt>cfg.fxMs){renderEffects(time);lastEffectsAt=time}if(time-lastHud>cfg.hudMs){status();if(coreUI?.open&&time-lastCoreRender>4300){coreUI.render();lastCoreRender=time}lastHud=time}drawMiniMap();sound.step({weather:living.getWeather(player.x),machines:factory.machines.length,nearbyKinds:factory.machines.filter(m=>Math.abs(m.x-player.x)<28&&Math.abs(m.y-player.y)<28&&!m.autoHold&&!m.safetyHold).map(m=>m.kind),moving:player.moving,hot:dynamics.heatPeak>150,now:time});lastFrame=time}renderCost=performanceNow()-renderStart;perfController.report(performanceNow()-frameStart,simCost,renderCost,time,elapsed);
    if(time-autoSaveTime>90000){autoSaveTime=time;if('requestIdleCallback' in window)window.requestIdleCallback(()=>saveEngine(true),{timeout:10000});else saveEngine(true)}
    frameCount++;if(time-perfTime>3000){const fps=Math.round(frameCount*1000/Math.max(1,time-perfTime));const el=$('fps');if(el)el.textContent=fps+' FPS';const d=$('perfDetail'),stats=perfController.stats;if(d)d.textContent=perfController.name+' · '+stats.work.toFixed(1)+' ms/frame · Physics '+stats.simulation.toFixed(1)+' ms · Graphics '+stats.graphics.toFixed(1)+' ms · Hybrid '+hybrid.stats().pressureEvents+' pressure / '+hybrid.stats().heatEvents+' heat';frameCount=0;perfTime=time}
   }
