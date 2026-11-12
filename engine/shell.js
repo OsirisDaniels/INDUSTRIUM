@@ -11,13 +11,28 @@ export function createGameShell({world,factory,operations,migration,notice,onTra
  function setMenu(open){menu.hidden=!open;if(open){closeSheet();onPause(true);updateMenu()}else onPause(false)}
  function syncSettings(){$('creative').textContent=factory.creative?'Creative On':'Career Mode';$('creative').classList.toggle('active',factory.creative);$('weather').textContent=factory.weather?'Weather On':'Weather Off';$('weather').classList.toggle('active',factory.weather)}
  function syncMaterials(){for(const b of document.querySelectorAll('[data-material]')){const locked=!factory.creative&&Number(b.dataset.material)!==-1;b.classList.toggle('locked',locked);b.disabled=locked;b.hidden=locked}}
- function refreshCatalog(){const q=$('machineSearch').value.trim().toLowerCase();let count=0;for(const b of document.querySelectorAll('[data-machine]')){const kind=b.dataset.machine,info=CATALOG[kind]||{},category=info.category||'Other',broad=['Fluids','Fluid systems'].includes(category)?'Fluid':['Separation','Refining','Smelting','Petrochemical'].includes(category)?'Processing':category;b.hidden=(filter!=='All'&&filter!==category&&filter!==broad)||!!q&&!(String(info.title||kind)+' '+category+' '+kind).toLowerCase().includes(q);b.classList.toggle('locked',!unlocked(kind,factory));b.title=unlocked(kind,factory)?info.description||kind:unlockHint(kind);if(!b.hidden)count++}$('buildCount').textContent=count+' machines · Locked items display their unlock requirements'}
+ function refreshCatalog(){
+  const q=$('machineSearch').value.trim().toLowerCase(),showLocked=$('showLocked').checked;
+  let visible=0,hiddenLocked=0;
+  for(const button of document.querySelectorAll('[data-machine]')){
+   const kind=button.dataset.machine,info=CATALOG[kind]||{},category=info.category||'Other';
+   const broad=['Fluids','Fluid systems'].includes(category)?'Fluid':['Separation','Refining','Smelting','Petrochemical'].includes(category)?'Processing':category;
+   const matches=(filter==='All'||filter===category||filter===broad)&&(!q||(String(info.title||kind)+' '+category+' '+kind).toLowerCase().includes(q));
+   const locked=!unlocked(kind,factory);
+   button.hidden=!matches||(locked&&!showLocked);
+   button.classList.toggle('locked',locked);
+   button.title=locked?unlockHint(kind):info.description||kind;
+   if(matches&&locked&&!showLocked)hiddenLocked++;
+   if(!button.hidden)visible++;
+  }
+  $('buildCount').textContent=(visible?visible+(visible===1?' machine':' machines'):'No machines found')+(hiddenLocked?' · '+hiddenLocked+' locked':'');
+ }
  function drawAtlas(){const ctx=map.getContext('2d',{alpha:false});if(!ctx)return;const pixels=ctx.createImageData(W,H),d=pixels.data;for(let i=0;i<world.grid.length;i++){const col=COLORS[world.grid[i]]||COLORS[0],j=i*4;d[j]=col[0];d[j+1]=col[1];d[j+2]=col[2];d[j+3]=255}ctx.putImageData(pixels,0,0);ctx.fillStyle='#effff2';for(const m of factory.machines)ctx.fillRect(m.x-1,m.y-1,3,3);ctx.fillStyle='#ffd477';for(const s of factory.surveys||[])ctx.fillRect(s.x-1,s.y-1,3,3);ctx.strokeStyle='#ffffff77';for(const x of [60,120,180]){ctx.beginPath();ctx.moveTo(x+.5,0);ctx.lineTo(x+.5,H);ctx.stroke()}}
  function openSheet(page,force=false){if(!Object.hasOwn(titles,page))return;if(menuVisible())setMenu(false);if(current===page&&!sheet.hidden){if(force){operations.render();return}closeSheet();return}current=page;sheet.hidden=false;$('sheetTitle').textContent=titles[page];document.querySelectorAll('[data-section]').forEach(el=>el.hidden=el.dataset.section!==page);document.querySelectorAll('[data-pane]').forEach(el=>el.classList.toggle('active',el.dataset.pane===page));if(page==='industry')operations.render();if(page==='map'){migration.render();$('migAtlas').click();drawAtlas()}if(page==='build')refreshCatalog();if(page==='terrain')syncMaterials();if(page==='settings')syncSettings()}
  const categories=['All','Power','Mining','Processing','Logistics','Fluid','Thermal','Exploration','Other'];
  $('machineFilters').innerHTML=categories.map((name,i)=>'<button type="button" data-category="'+name+'" class="'+(i===0?'active':'')+'">'+name+'</button>').join('');
  $('machineFilters').onclick=e=>{const b=e.target.closest('[data-category]');if(!b)return;filter=b.dataset.category;for(const el of $('machineFilters').querySelectorAll('button'))el.classList.toggle('active',el===b);refreshCatalog()};
- $('machineSearch').oninput=refreshCatalog;
+ $('machineSearch').oninput=refreshCatalog;$('showLocked').onchange=refreshCatalog;
  $('brushSize').oninput=e=>{$('brushLabel').textContent=e.target.value+' px';onBrush(Number(e.target.value))};
  for(const b of document.querySelectorAll('[data-pane]'))b.onclick=()=>openSheet(b.dataset.pane);
  $('sheetClose').onclick=closeSheet;$('menuOpen').onclick=()=>setMenu(true);$('menuResume').onclick=()=>setMenu(false);$('menuClose').onclick=()=>setMenu(false);
@@ -30,7 +45,7 @@ export function createGameShell({world,factory,operations,migration,notice,onTra
  $('weather').onclick=()=>{factory.weather=!factory.weather;syncSettings();onSave(true);notice('World weather '+(factory.weather?'enabled':'disabled'))};
  $('guideSteps').innerHTML=[['01 · Power the factory','Build a Generator before installing powered equipment.','build'],['02 · Mine resources','Place drills near orange ore and collect the output.','build'],['03 · Shape the landscape','Career permits digging; Creative unlocks unlimited sand, water, oil and lava.','terrain'],['04 · Sell your products','Use the Market to turn processed inventory into credits.','industry'],['05 · Research and contracts','Claim industrial contracts and improve your machinery.','industry'],['06 · Explore four biomes','Travel to the coast, dunes, volcanoes and frozen highlands.','map'],['07 · Career or Creative','In Career, earn materials and excavate; Creative allows free painting.','settings'],['08 · Save and import','Manual slots preserve your engineer, automation and planetary history.','map'],['09 · Play on foot','Select Walk, use the phone joystick and JUMP, or tap the world to travel.','map'],['10 · Industrial intelligence','Open Industry then CORE to manage automation and inspect forecasts.','industry']].map(([a,b,c])=>'<button type="button" class="guideStep" data-guide="'+c+'"><b>'+a+'</b><small>'+b+'</small></button>').join('');
  $('guideSteps').onclick=e=>{const b=e.target.closest('[data-guide]');if(b)openSheet(b.dataset.guide)};
- $('factoryTools').addEventListener('click',e=>{const b=e.target.closest('[data-machine]');if(!b)return;const kind=b.dataset.machine,info=CATALOG[kind]||{};$('machineDetails').textContent=(info.title||kind)+' · $'+(b.dataset.price||'?')+' · '+(info.description||'')+(unlocked(kind,factory)?'':' · LOCKED: '+unlockHint(kind));if(unlocked(kind,factory))closeSheet()});
+ $('factoryTools').addEventListener('click',e=>{const b=e.target.closest('[data-machine]');if(!b)return;if(unlocked(b.dataset.machine,factory))closeSheet()});
  $('materials').addEventListener('click',e=>{const b=e.target.closest('[data-material]');if(b&&b.dataset.restricted==='1'&&!factory.creative)notice('This resource requires Creative Sandbox. Change playstyle in Settings.');else if(b)closeSheet()});
  syncSettings();syncMaterials();updateMenu();return{openSheet,closeSheet,setMenu,menuVisible,refreshCatalog,syncMaterials,drawAtlas,updateMenu};
 }
