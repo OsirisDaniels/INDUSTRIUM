@@ -36,9 +36,9 @@ export function createCoreUI({core,living,intelligence,autonomy,factory,notice,s
   diagnostic();if(scroll)scroll.scrollTop=scrollTop;
  }
  function diagnostic(){const d=$('coreDiagnostic'),m=selected===null?null:factory.machines[selected];if(!d)return;const s=intelligence.diagnostics(m);d.textContent=s?'Health '+s.health+'% · Wear '+s.wear+'% · Heat '+s.heat+' · '+s.power+' · '+s.safety+(m.autoHold?' · AUTO STANDBY':'')+' · '+s.action:'Choose a machine to inspect its actual condition.'}
- function show(){open=true;body.hidden=false;main.hidden=true;loan.hidden=true;for(const id of ['tabCareer','tabResearch','tabMarket','tabInspector','tabCore'])$(id).classList.toggle('active',id==='tabCore');render()}
+ function show(){open=true;body.hidden=false;main.hidden=true;loan.hidden=true;for(const id of ['tabOverview','tabCareer','tabResearch','tabMarket','tabInspector','tabCore'])$(id).classList.toggle('active',id==='tabCore');render()}
  function hide(){if(!open)return;open=false;body.hidden=true;main.hidden=false;loan.hidden=false;$('tabCore').classList.remove('active')}
  $('tabCore').onclick=show;
- for(const id of ['tabCareer','tabResearch','tabMarket','tabInspector'])$(id).addEventListener('click',hide);
+ for(const id of ['tabOverview','tabCareer','tabResearch','tabMarket','tabInspector'])$(id).addEventListener('click',hide,true);
  return{render,show,hide,get open(){return open}};
 }

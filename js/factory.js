@@ -59,7 +59,7 @@ export class Factory{
   if((!to||to===m||moved?.has(to)||!this.accepts(to,key)||this.quantity(to)>=to.capacity)&&m.smartRoute)to=this.target(m,key);
   return to&&to!==m&&!moved?.has(to)&&!to.autoHold&&!to.safetyHold&&this.accepts(to,key)&&this.quantity(to)<to.capacity?to:null;
  }
- diagnose(m){
+ diagnose(m,power){
   const demand=DEMAND[m.kind]||0,used=this.quantity(m),lastAction=m.lastAction||'Ready';
   const full=m.capacity>0&&used>=m.capacity,logistics=directionalTransport.has(m.kind);
   let route=null,blocked=false;
@@ -78,7 +78,7 @@ export class Factory{
   let condition=lastAction;
   if(m.safetyHold)condition='Safety shutdown';
   else if(m.autoHold)condition='Automation standby';
-  else if(demand&&!this.power().online)condition='Insufficient power';
+  else if(demand&&!(power??this.power()).online)condition='Insufficient power';
   else if(blocked||(!route&&/^(Outlet|Output) blocked$/.test(lastAction)))condition='Output blocked';
   else if(lastAction==='Outlet blocked')condition='Outlet clear';
   else if(full)condition='Buffer full';
