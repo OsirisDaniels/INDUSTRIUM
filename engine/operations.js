@@ -1,11 +1,52 @@
 // Operations UI is isolated from the Phaser rendering scene.
-import {ROTATABLE_MACHINES} from '../js/factory.js?v=0310';
+import {ROTATABLE_MACHINES} from '../js/factory.js?v=0330';
 import {CATALOG} from '../js/catalog.js?v=080-frontiers-final';
 const $=id=>document.getElementById(id);
 const research={drill:['Extraction',30],refining:['Metallurgy',40],energy:['Generation',45],sifting:['Separation',40],logistics:['Logistics',55],survey:['Geology',60],petro:['Petrochemistry',75],grid:['Power grid',65],stability:['Hazard control',90]};
 const esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-export function createOperations(factory,{notice,save,status}){
- let tab='career',selected=null;
+export function createOperations(factory,{notice,save,status,focusMachine}){
+ let tab='overview',selected=null;
+ const tabs=['Overview','Career','Research','Market','Inspector'];
+ const windowSize=30;
+ const counters=()=>[factory.mined,factory.refined,factory.automated];
+ let samples=[counters()],lastOverviewMarkup='';
+ function resetOverview(){samples=[counters()];lastOverviewMarkup=''}
+ function recordProduction(){
+  samples.push(counters());
+  if(samples.length>windowSize+1)samples.shift();
+ }
+ function updateOverview(){
+  if(tab!=='overview'||root.hidden||$('gameSheet').hidden||root.closest('[data-section]').hidden)return;
+  const power=factory.power();
+  const groups=new Map([['Safety shutdown',[]],['Insufficient power',[]],['Output blocked',[]],['Buffer full',[]]]);
+  for(const machine of factory.machines){
+   const {condition}=factory.diagnose(machine,power);
+   groups.get(condition)?.push(machine);
+  }
+  const count=[...groups.values()].reduce((sum,machines)=>sum+machines.length,0);
+  const totals=samples.at(-1).map((value,i)=>value-samples[0][i]);
+  const production='<p class="metricsLine">Production over '+(samples.length-1)+' recent factory cycles</p><div class="inventory">'+['Ore mined','Metal smelted','Transfers'].map((label,i)=>'<span>'+label+' <b>'+totals[i]+'</b></span>').join('')+'</div>';
+  const faults=[...groups].filter(([,machines])=>machines.length).map(([name,machines])=>
+   '<details class="operation faultGroup" data-fault="'+name+'" open><summary>'+name+' · '+machines.length+'</summary>'+
+   machines.map(m=>'<button type="button" data-machine-focus="'+m.x+','+m.y+'">'+esc(CATALOG[m.kind]?.title||m.kind)+' · '+m.x+', '+m.y+'</button>').join('')+'</details>').join('');
+  const markup=production+'<p class="metricsLine">'+(count?count+(count===1?' machine needs attention':' machines need attention'):factory.machines.length?'No urgent bottlenecks':'Build a machine to start tracking bottlenecks')+'</p>'+faults;
+  if(markup===lastOverviewMarkup)return;
+  const sections=new Map(Array.from(root.querySelectorAll('[data-fault]'),el=>[el.dataset.fault,el.open]));
+  const focus=document.activeElement?.dataset.machineFocus;
+  root.innerHTML=markup;
+  lastOverviewMarkup=markup;
+  for(const section of root.querySelectorAll('[data-fault]')){
+   if(sections.has(section.dataset.fault))section.open=sections.get(section.dataset.fault);
+  }
+  for(const button of root.querySelectorAll('[data-machine-focus]')){
+   button.onclick=()=>{
+    const [x,y]=button.dataset.machineFocus.split(',').map(Number);
+    const machine=factory.machines.find(m=>m.x===x&&m.y===y);
+    if(machine)focusMachine(machine);
+   };
+   if(focus===button.dataset.machineFocus)button.focus({preventScroll:true});
+  }
+ }
  const root=$('operationsBody');
  const selection=()=>selected&&factory.machines.includes(selected)?selected:null;
  const card=(title,detail,button,action,disabled=false)=>'<div class="operation"><strong>'+esc(title)+'</strong><small>'+esc(detail)+'</small>'+(button?'<button data-act="'+esc(action)+'" '+(disabled?'disabled':'')+'>'+esc(button)+'</button>':'')+'</div>';
@@ -25,7 +66,8 @@ export function createOperations(factory,{notice,save,status}){
   if(detail.textContent!==text)detail.textContent=text;
  }
  function render(){
-  for(const name of ['Career','Research','Market','Inspector'])$('tab'+name).classList.toggle('active',tab===name.toLowerCase());
+  for(const name of tabs)$('tab'+name).classList.toggle('active',tab===name.toLowerCase());
+  if(tab==='overview'){lastOverviewMarkup='';updateOverview();return}
   if(tab==='career'){
    const goals=factory.goals();root.innerHTML='<div class="metricsLine">'+goals.filter(g=>g.claimed).length+' / '+goals.length+' contracts complete · '+factory.rp+' RP</div>'+goals.map(g=>card(g.title,g.detail+' · $'+g.reward+' + '+g.rp+' RP',g.claimed?'Completed':g.done?'Claim reward':'Locked','claim:'+g.id,g.claimed||!g.done)).join('');
   }else if(tab==='research'){
@@ -51,8 +93,8 @@ export function createOperations(factory,{notice,save,status}){
    notice(msg);status();render();save();
   });
  }
- for(const name of ['Career','Research','Market','Inspector'])$('tab'+name).onclick=()=>{tab=name.toLowerCase();render()};
+ for(const name of tabs)$('tab'+name).onclick=()=>{tab=name.toLowerCase();render()};
  $('borrow').onclick=()=>{notice(factory.borrow());status();render();save()};
  render();
- return {render,selection,updateInspector,inspect(m){selected=m;tab='inspector';render()}};
+ return {render,selection,updateInspector,updateOverview,recordProduction,resetOverview,inspect(m){selected=m;tab='inspector';render()}};
 }

@@ -253,3 +253,6 @@ body:has(.gameSheet:not([hidden])) :is(.cameraRail,.joyPad,.jumpBtn) {
  .gameSheet { max-height:calc(100dvh - var(--dock-bottom) - 120px); }
  .playerHud { top:calc(max(var(--ui-gutter),env(safe-area-inset-top)) + 59px); bottom:auto; }
 }
+
+.faultGroup summary { cursor:pointer; padding:8px 0; font-weight:700; }
+.faultGroup button { display:block; width:100%; min-height:44px; text-align:left; margin-top:5px; }
