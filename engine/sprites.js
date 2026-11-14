@@ -1,5 +1,7 @@
 // Alpha 0.27: procedural Phaser sprite-atlas for industrial machinery.
-// Built at runtime: no extra downloads, no changes to save data or machine rules.
+// The hand-drawn machine frames share the existing runtime texture atlas.
+import {machineArt,isMachineAnimating} from "./machine-art.js?v=0340";
+const customKinds=Object.keys(machineArt);
 const thermal=new Set(['furnace','kiln','combustor','refinery','distiller']);
 const mining=new Set(['drill','deepdrill','crystaldrill','excavator','oilrig']);
 const transport=new Set(['belt','filter','hopper','pump','condenser','cooler']);
@@ -7,12 +9,12 @@ const energy=new Set(['generator','wind','waterwheel','battery']);
 const groups=['thermal','mining','transport','energy','general'];
 const colors={thermal:0xe98665,mining:0xe3b66b,transport:0x74c9ce,energy:0x89e3b5,general:0xb4b7d5};
 export function createIndustrialSprites(scene,factory){
- const atlasKey='industrium-industrial-027';
+ const atlasKey='industrium-industrial-034';
  if(!scene.textures.exists(atlasKey)){
   const g=scene.make.graphics({x:0,y:0},false);
-  const atlas=document.createElement('canvas');atlas.width=32*4;atlas.height=32*groups.length;
+  const atlas=document.createElement('canvas');atlas.width=32*5;atlas.height=32*(groups.length+customKinds.length);
   const ctx=atlas.getContext('2d');
-  if(!ctx)return{draw(){},destroy(){}};
+  if(!ctx){g.destroy();return null}
   for(let row=0;row<groups.length;row++)for(let f=0;f<4;f++){
    const type=groups[row],x=f*32,y=row*32,col=colors[type],pulse=f%2;
    g.clear();g.fillStyle(0x091823,1);g.fillRoundedRect(2,2,28,28,4);
@@ -33,6 +35,15 @@ export function createIndustrialSprites(scene,factory){
   scene.textures.addCanvas(atlasKey,atlas);
   const tex=scene.textures.get(atlasKey);
   for(let row=0;row<groups.length;row++)for(let f=0;f<4;f++)tex.add(groups[row]+'-'+f,0,f*32,row*32,32,32);
+  for(const [row,kind] of customKinds.entries()){
+   const y=(groups.length+row)*32;
+   for(let frame=0;frame<5;frame++){
+    const x=frame*32;
+    machineArt[kind]((rx,ry,w,h,color)=>{ctx.fillStyle=color;ctx.fillRect(x+rx,y+ry,w,h)},frame);
+    tex.add(kind+'-'+frame,0,x,y,32,32);
+   }
+  }
+  tex.refresh();
  }
  const sprites=new Map();
  const typeOf=k=>thermal.has(k)?'thermal':mining.has(k)?'mining':transport.has(k)?'transport':energy.has(k)?'energy':'general';
@@ -40,14 +51,17 @@ export function createIndustrialSprites(scene,factory){
   const fast=quality==='Fast'||quality==='Ultra',alive=new Set(),list=factory.machines||[];
   const left=camera?camera.scrollX/4-12:0,right=camera?(camera.scrollX+camera.width/camera.zoom)/4+12:240;
   const top=camera?camera.scrollY/4-12:0,bottom=camera?(camera.scrollY+camera.height/camera.zoom)/4+12:160;
-  const stride=1; // Every visible machine stays visible; low tiers only reduce animation frequency.
-  for(let i=0;i<list.length;i+=stride){
+  const power=factory.power();
+  for(let i=0;i<list.length;i++){
    const m=list[i];if(m.x<left||m.x>right||m.y<top||m.y>bottom)continue;
    const id=i;alive.add(id);
    let sp=sprites.get(id);if(!sp){sp=scene.add.image(0,0,atlasKey,'general-0').setDepth(5);sprites.set(id,sp)}
    const active=!m.autoHold&&!m.safetyHold&&m.integrity!==0;
-   const frame=active?Math.floor(time/(fast?360:145)+i)%4:0;
-   sp.setFrame(typeOf(m.kind)+'-'+frame).setPosition(m.x*4,m.y*4).setAlpha(active?.96:.55).setVisible(true);
+   const custom=Object.hasOwn(machineArt,m.kind);
+   const moving=active&&(!custom||isMachineAnimating(m,power));
+   const frame=moving?Math.floor(time/(fast?360:145)+i)%4+(custom?1:0):0;
+   const angle=m.kind==='belt'||m.kind==='pump'?(m.dir&3)*90:0;
+   sp.setFrame((custom?m.kind:typeOf(m.kind))+'-'+frame).setPosition(m.x*4,m.y*4).setAngle(angle).setAlpha(active?.96:.55).setVisible(true);
    if(m.integrity!=null&&m.integrity<35)sp.setTint(0xff9b86);else sp.clearTint();
   }
   for(const [id,sp] of sprites)if(!alive.has(id)){sp.destroy();sprites.delete(id)}
