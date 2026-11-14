@@ -1,0 +1,15 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="nz.industrium.game" android:versionCode="35" android:versionName="0.35.0">
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="35" />
+    <application android:label="INDUSTRIUM" android:icon="@drawable/industrium_icon"
+        android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false"
+        android:usesCleartextTraffic="false" android:hardwareAccelerated="true">
+        <activity android:name=".GameActivity" android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

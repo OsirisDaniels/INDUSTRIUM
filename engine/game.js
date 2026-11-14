@@ -1,3 +1,4 @@
+import {decodeFactorySave} from './save-transfer.js?v=0350';
 import {createEngineerSprite} from './engineer-sprite.js?v=0280';
 import {createIndustrialSprites} from './sprites.js?v=0340';
 import {createStructures} from './structures.js?v=0250';
@@ -139,9 +140,44 @@ function makeTools(){
  $('zoomIn').onclick=()=>{sound.play('zoom');setZoom(1.25)};
  $('zoomOut').onclick=()=>{sound.play('zoom');setZoom(.8)};
  $('save').onclick=()=>saveEngine();
- $('load').onclick=()=>{if(loadEngine()){notice('Engine save loaded');coreUI?.render();renderTerrain();renderMachines();status();operations?.render();migration?.render();shell?.updateMenu();shell?.refreshCatalog();shell?.syncMaterials()}else notice('No engine save found')};
+ const code=$('factorySaveCode');
+ const showTransfer=importing=>{
+  $('factoryTransfer').hidden=false;
+  $('copyFactory').hidden=importing;
+  $('importFactory').hidden=!importing;
+  code.readOnly=!importing;
+  code.value=importing?'':localStorage.getItem(KEY);
+  code.focus();
+  if(!importing)code.select();
+ };
+ $('exportFactory').onclick=()=>{if(saveEngine(true))showTransfer(false)};
+ $('openImportFactory').onclick=()=>showTransfer(true);
+ $('copyFactory').onclick=async()=>{
+  code.focus();code.select();
+  try{await navigator.clipboard.writeText(code.value);notice('Save code copied')}
+  catch{notice('Save code selected. Long press the selection and tap Copy.')}
+ };
+ $('importFactory').onclick=()=>{
+  let data;
+  try{data=decodeFactorySave(code.value,W*H,Object.keys(T).length)}catch{notice('That save code is invalid or incomplete');return}
+  if(!confirm('Replace the current factory with this save?'))return;
+  if(!saveEngine(true))return;
+  const previous=localStorage.getItem(KEY);
+  try{
+   localStorage.setItem(KEY,JSON.stringify(data));
+   if(!loadEngine()){
+    localStorage.setItem(KEY,previous);loadEngine();notice('Import failed. Previous factory restored.');return;
+   }
+   refreshLoadedFactory();$('factoryTransfer').hidden=true;code.value='';notice('Factory imported');
+  }catch{notice('Could not save the imported factory')}
+ };
+ $('load').onclick=()=>{if(loadEngine()){refreshLoadedFactory();notice('Engine save loaded')}else notice('No engine save found')};
  $('new').onclick=()=>{if(!confirm('Replace the Phaser autosave with a new random planet?'))return;newWorld()};
  refreshButtons();
+}
+function refreshLoadedFactory(){
+ coreUI?.render();renderTerrain();renderMachines();status();operations?.render();migration?.render();
+ shell?.updateMenu();shell?.refreshCatalog();shell?.syncMaterials();
 }
 function setZoom(mult){if(!scene)return;targetZoom=Phaser.Math.Clamp(targetZoom*mult,.65,4.5);status()}
 function clampCamera(){if(!scene)return;const c=scene.cameras.main,visW=c.width/c.zoom,visH=c.height/c.zoom;if(visW>=WIDTH)c.centerOn(WIDTH/2,c.midPoint.y);if(visH>=HEIGHT)c.centerOn(c.midPoint.x,HEIGHT/2);c.setScroll(Phaser.Math.Clamp(c.scrollX,0,Math.max(0,WIDTH-visW)),Phaser.Math.Clamp(c.scrollY,0,Math.max(0,HEIGHT-visH)))}
