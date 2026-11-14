@@ -1,5 +1,5 @@
 import {createEngineerSprite} from './engineer-sprite.js?v=0280';
-import {createIndustrialSprites} from './sprites.js?v=0270';
+import {createIndustrialSprites} from './sprites.js?v=0340';
 import {createStructures} from './structures.js?v=0250';
 import {createHybrid} from './hybrid.js?v=0280';
 import {Autonomy} from './autonomy.js?v=0233';

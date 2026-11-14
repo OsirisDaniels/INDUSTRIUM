@@ -51,6 +51,10 @@ Consolidated the world tools into one dock, moved telemetry and diagnostics to t
 
 Industry opens on an overview with machine bottlenecks grouped by cause. Select a machine to focus the camera and open its inspector. Production shows ore mined, metal refined and automated transfers over up to 30 factory cycles since the world was opened.
 
+## Stage 4.8: Machine pixel art (Alpha 0.34)
+
+The generator, mining drill, conveyor and water pump have dedicated hand-drawn sprite frames, packed into the existing runtime atlas. Conveyors and pumps rotate with their saved direction. Animation uses machine activity and the existing performance tiers.
+
 ## Stage 5: Worker evaluation (planned)
 
 Profile the full simulation, then test worker-owned physics using transferable snapshots and a command queue. Keep factory, player, machine placement, saves and world physics synchronized. Only ship worker mode if it produces a measured improvement on actual mobile devices.
@@ -64,4 +68,4 @@ Profile the full simulation, then test worker-owned physics using transferable s
 5. Fallback mode remains usable on lower-end phones.
 6. Every new physics rule has deterministic test fixtures and a bounded work budget.
 
-**Status (Alpha 0.33):** Stages 1–3 have initial implementations; Stage 4 includes camera-aware rendering and the first runtime machine sprite atlas. Stage 5 remains planned. Pipe failures, advanced structural supports, authored sprite assets and GPU shaders remain unfinished. Android gameplay and FPS require device validation.
+**Status (Alpha 0.34):** Stages 1–3 have initial implementations; Stage 4 includes camera-aware rendering and the first runtime machine sprite atlas. Stage 5 remains planned. Pipe failures, advanced structural supports, authored sprite assets and GPU shaders remain unfinished. Android gameplay and FPS require device validation.
